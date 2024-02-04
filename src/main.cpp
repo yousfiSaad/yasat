@@ -1,23 +1,11 @@
 
 
 #include "headers/CDCL_solver.h"
-#include <fstream>
 #include <iostream>
 #include <ostream>
 #include <vector>
-// #include <string>
 int main(int argc, char *argv[]) {
- 
-  // std::ifstream fin{"./data/php_10p_9h.cnf"};
-  // std::ifstream fin{"./data/php_3p_2h.cnf"};
-
-  // std::string s;
-  // while (fin >> s) {
-  //   std::cout << s << "\n";
-  // }
-
   CDCL_solver solver{std::cin};
-  // CDCL_solver solver{fin};
 
   std::vector<bool> solution;
   if (solver.solve(solution))
