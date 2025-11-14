@@ -16,8 +16,6 @@
 #define FORI8(i, lim) \
   for (int8_t i = 0; i < lim; i++)
 
-#define MAX_SOLUTIONS 2
-
 #define FORRC(i, j, k)         \
   for (char i = 0; i < k; i++) \
     for (char j = 0; j < k; j++)

@@ -28,7 +28,6 @@
 #include "../headers/CDCL_solver.h"
 #include "../headers/macros.h"
 
-// #define LEN_NEEDSRESTART 40
 #define MAX_RESTART 800
 #define COEFS_NEEDSRESTART 100
 
@@ -142,7 +141,6 @@ inline bool CDCL_solver::needsRestart(unsigned long iterations,
 
 bool CDCL_solver::solve_(literal startLit, unsigned long *pNum_iter) {
   int r = 0;
-  // char seed = 0;
   bool valid = true;
   literal conflictingLiteral;
   if (!_setUpLiteralToStartWith(startLit, conflictingLiteral, valid))
@@ -154,8 +152,6 @@ bool CDCL_solver::solve_(literal startLit, unsigned long *pNum_iter) {
   while (true) {
     (*pNum_iter)++;
     if (valid) {
-      // literal lit = chooseUnsetLiteral2(seed);
-      // literal lit = chooseUnsetLiteral2();
       literal lit = findFirstUnsetLiteral();
       if (lit == -1)
         return true;
@@ -164,7 +160,6 @@ bool CDCL_solver::solve_(literal startLit, unsigned long *pNum_iter) {
       dStack.push(decision{lit, level});
     } else {
       if (needsRestart(*pNum_iter, r)) {
-        // std::cerr<<"Restart " << r << "\n";
         clearLevels();
         if (r > R && *pNum_iter > 100000)
           throw std::runtime_error("takes long time");
@@ -253,7 +248,6 @@ int CDCL_solver::undoLevelAndPop() {
       idx clIdx = states_satisfied_in_each_level[level].top();
       states_satisfied_in_each_level[level].pop();
       cnf[clIdx].sat = false;
-      /* code */
     }
   dStack.pop();
 #ifdef DEBUG
@@ -274,43 +268,10 @@ literal CDCL_solver::findFirstUnsetLiteral(literal startFrom) {
 
   return VAL(nextIdxToTry);
 }
-literal CDCL_solver::chooseUnsetLiteral2() {
-  std::array<unsigned int, 81> cells;
-  FOR(ij, 81) {
-    cells[ij] = 0;
-    FOR(e, 9) {
-      literal lit = VAL(ij * 9 + e);
-      cells[ij] += isLiteralEmpty(lit) ? 1 : 0;
-    }
-  }
-  FOR(ij, 81) {
-    cells[ij] <<= 8;
-    cells[ij] |= ij;
-  }
-  std::sort(std::begin(cells), std::end(cells));
-  std::array<unsigned int, 81>::iterator it =
-      std::lower_bound(std::begin(cells), std::end(cells), 90);
-  if (it == std::end(cells))
-    return -1;
-
-  char n = (*it) >> 8;
-  char n_max = rand() % n;
-  char i = 0;
-  literal lit = VAL(9 * ((*it) & 0b11111111));
-  while (!isLiteralEmpty(lit) || i < n_max) {
-    if (isLiteralEmpty(lit))
-      i++;
-    lit += 2;
-  }
-  return lit;
-}
 literal CDCL_solver::chooseUnsetLiteral() {
   int min = __SHRT_MAX__;
   literal retLit = -1;
-  // for(int i = 80; i >= 0; i--)
-  FOR(i, 81) {
-    if (i >= cnf.size())
-      return findFirstUnsetLiteral(-1);
+  FOR(i, cnf.size()) {
     if (cnf[i].sat)
       continue;
     int c = 0;
@@ -352,10 +313,6 @@ analysisResult CDCL_solver::analyze(literal conflictingLiteral) {
           literal ncLit = NOT(cLit);
           if (s.find(ncLit) == s.end() && levels[IDX(ncLit)] > 0) {
             s.insert(ncLit);
-            // for(const literal prlit: cnf[causes[*it]].literals)
-            //   std::cerr << prlit << " ";
-            // std::cerr << " : "
-            //   << ncLit << " -> " << *it << "\n";
             lits.push_front(ncLit);
             changed = true;
           }
