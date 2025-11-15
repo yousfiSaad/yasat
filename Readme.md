@@ -435,10 +435,16 @@ For industrial-scale SAT solving, consider:
 
 ## CI/CD
 
-GitHub Actions automatically:
-- Builds both release and debug versions
-- Runs full test suite
-- Reports build status
+GitHub Actions automatically tests everything on every push:
+- **CLI builds**: Release and debug versions
+- **Shared library**: Build and link verification
+- **CLI tests**: 16 core CNF tests (release + debug)
+- **C API tests**: 24 tests covering all C functions
+- **Python tests**: 25 tests for Python bindings
+- **Go tests**: 17 tests for Go bindings
+- **Total**: 82 automated tests on every commit
+
+This ensures all language bindings remain stable and functional across changes.
 
 ## Project Structure
 
