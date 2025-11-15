@@ -5,7 +5,9 @@ A fast, lightweight SAT solver implementing the Conflict-Driven Clause Learning 
 ## Features
 
 - **CDCL Algorithm**: State-of-the-art conflict-driven clause learning
-- **Zero Dependencies**: Uses only the C++ standard library
+- **Shared Library**: Use YASAT from C, Go, Python, and other languages
+- **Language Bindings**: Idiomatic bindings for Go and Python included
+- **Zero Dependencies**: Core uses only the C++ standard library
 - **Modern C++**: Built with C++17 standards
 - **Robust Input Validation**: Comprehensive error checking for malformed CNF files
 - **Flexible I/O**: Read from files or stdin
@@ -128,6 +130,213 @@ Format explanation:
 
 Example formula: `(x₁ ∨ x₂) ∧ (¬x₁ ∨ x₃)`
 
+## Library Usage
+
+YASAT can be used as a shared library from C, Go, Python, and other languages that support FFI.
+
+### Building the Shared Library
+
+```bash
+# Build the shared library
+make lib
+
+# Build both CLI and library
+make all
+
+# Install system-wide (optional)
+sudo make install
+```
+
+This creates `libyasat.so` (Linux) or `libyasat.dylib` (macOS) in the `build/` directory.
+
+### C API
+
+The C API provides a simple interface for integrating YASAT into C/C++ projects.
+
+**Example:**
+
+```c
+#include <yasat.h>
+#include <stdio.h>
+
+int main() {
+    // Create solver
+    yasat_solver* solver = yasat_solver_create();
+
+    // Add clauses: (x1 ∨ x2) ∧ (¬x1 ∨ x3)
+    int clause1[] = {1, 2};
+    yasat_add_clause(solver, clause1, 2);
+
+    int clause2[] = {-1, 3};
+    yasat_add_clause(solver, clause2, 2);
+
+    // Solve
+    yasat_result result = yasat_solve(solver);
+
+    if (result == YASAT_RESULT_SAT) {
+        printf("SAT\n");
+        // Get assignments
+        for (int i = 1; i <= 3; i++) {
+            int val = yasat_get_assignment(solver, i);
+            printf("x%d = %d\n", i, val);
+        }
+    } else {
+        printf("UNSAT\n");
+    }
+
+    // Cleanup
+    yasat_solver_destroy(solver);
+    return 0;
+}
+```
+
+**Compile:**
+
+```bash
+gcc -o myapp myapp.c -L./build -lyasat
+LD_LIBRARY_PATH=./build ./myapp
+```
+
+**API Documentation:** See [`src/c_api/yasat.h`](src/c_api/yasat.h) for the complete API reference.
+
+### Go Bindings
+
+Idiomatic Go bindings using CGo.
+
+**Example:**
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/yousfiSaad/yasat/bindings/go/yasat"
+)
+
+func main() {
+    solver, _ := yasat.NewSolver()
+    defer solver.Close()
+
+    // Add clauses
+    solver.AddClause(1, 2)
+    solver.AddClause(-1, 3)
+
+    // Solve
+    result, _ := solver.Solve()
+
+    if result == yasat.SAT {
+        fmt.Println("SAT")
+        assignments, _ := solver.GetAllAssignments()
+        for i, val := range assignments {
+            fmt.Printf("x%d = %v\n", i+1, val)
+        }
+    } else {
+        fmt.Println("UNSAT")
+    }
+}
+```
+
+**Setup:**
+
+```bash
+# Build library
+make lib
+
+# Set library path
+export LD_LIBRARY_PATH=$PWD/build:$LD_LIBRARY_PATH
+
+# Run example
+cd bindings/go/examples
+go run simple.go
+```
+
+**Documentation:** See [`bindings/go/README.md`](bindings/go/README.md)
+
+### Python Bindings
+
+Pythonic interface using ctypes.
+
+**Example:**
+
+```python
+from yasat import Solver, Result
+
+# Create solver
+solver = Solver()
+
+# Add clauses
+solver.add_clause(1, 2)
+solver.add_clause(-1, 3)
+
+# Solve
+result = solver.solve()
+
+if result == Result.SAT:
+    print("SAT")
+    assignments = solver.get_all_assignments()
+    for i, val in enumerate(assignments, start=1):
+        print(f"x{i} = {val}")
+else:
+    print("UNSAT")
+```
+
+**Setup:**
+
+```bash
+# Build library
+make lib
+
+# Install Python package
+cd bindings/python
+pip install -e .
+
+# Run example
+python examples/simple.py
+```
+
+**Documentation:** See [`bindings/python/README.md`](bindings/python/README.md)
+
+### Loading from Files
+
+All APIs support loading CNF files:
+
+**C:**
+```c
+yasat_parse_cnf_file(solver, "problem.cnf");
+```
+
+**Go:**
+```go
+solver, _ := yasat.NewSolverFromFile("problem.cnf")
+```
+
+**Python:**
+```python
+solver.parse_cnf_file("problem.cnf")
+# Or use convenience function
+result, assignments = solve_file("problem.cnf")
+```
+
+### Installation
+
+Install YASAT system-wide to use from any project:
+
+```bash
+# Install to /usr/local (requires sudo)
+sudo make install
+
+# Or install to user directory
+make install INSTALL_PREFIX=~/.local
+
+# Uninstall
+sudo make uninstall
+```
+
+This installs:
+- Library: `/usr/local/lib/libyasat.so`
+- Header: `/usr/local/include/yasat.h`
+- Binary: `/usr/local/bin/yasat`
+
 ## Testing
 
 YASAT includes a comprehensive test suite:
@@ -220,12 +429,30 @@ yasat/
 │   ├── headers/
 │   │   ├── CDCL_solver.h           # Solver interface
 │   │   └── macros.h                # Utility macros
-│   └── implementations/
-│       └── CDCL_solver.cpp         # CDCL implementation
+│   ├── implementations/
+│   │   └── CDCL_solver.cpp         # CDCL implementation
+│   └── c_api/
+│       ├── yasat.h                 # C API header
+│       └── yasat.cpp               # C API implementation
+├── bindings/
+│   ├── go/
+│   │   ├── yasat/                  # Go package
+│   │   ├── examples/               # Go examples
+│   │   └── README.md               # Go documentation
+│   └── python/
+│       ├── yasat/                  # Python package
+│       ├── examples/               # Python examples
+│       └── README.md               # Python documentation
 ├── tests/
 │   ├── run_tests.sh                # Test runner script
+│   ├── test_c_api.c                # C API tests
 │   ├── README.md                   # Test documentation
 │   └── cnf/                        # Test CNF files
+├── docs/
+│   └── FFI_CALLBACKS.md            # FFI callback documentation
+├── build/                          # Build artifacts
+│   ├── yasat                       # CLI binary
+│   └── libyasat.so                 # Shared library
 ├── data/                           # Example CNF files
 ├── Makefile                        # Build system
 ├── build.sh                        # Build script
