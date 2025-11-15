@@ -122,11 +122,28 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         mkdir -p dist/${{ matrix.artifact_name }}
+
+        # Binary and libraries
         cp build/yasat dist/${{ matrix.artifact_name }}/
         cp build/libyasat.so* dist/${{ matrix.artifact_name }}/
         cp build/libyasat.a dist/${{ matrix.artifact_name }}/
+
+        # Headers
         cp -r src/headers dist/${{ matrix.artifact_name }}/include
+
+        # C API
+        mkdir -p dist/${{ matrix.artifact_name }}/c_api
+        cp src/c_api/yasat.h dist/${{ matrix.artifact_name }}/c_api/
+        cp src/c_api/yasat.cpp dist/${{ matrix.artifact_name }}/c_api/
+
+        # Language bindings
+        cp -r bindings/python dist/${{ matrix.artifact_name }}/
+        cp -r bindings/go dist/${{ matrix.artifact_name }}/
+
+        # Documentation
         cp README.md LICENSE dist/${{ matrix.artifact_name }}/ || cp Readme.md license.txt dist/${{ matrix.artifact_name }}/ || true
+
+        # Create archive
         cd dist && tar czf ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz ${{ matrix.artifact_name }}
         cd ..
         sha256sum dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz > dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz.sha256
@@ -135,11 +152,28 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         mkdir -p dist/${{ matrix.artifact_name }}
+
+        # Binary and libraries
         cp build/yasat dist/${{ matrix.artifact_name }}/
         cp build/libyasat*.dylib dist/${{ matrix.artifact_name }}/
         cp build/libyasat.a dist/${{ matrix.artifact_name }}/
+
+        # Headers
         cp -r src/headers dist/${{ matrix.artifact_name }}/include
+
+        # C API
+        mkdir -p dist/${{ matrix.artifact_name }}/c_api
+        cp src/c_api/yasat.h dist/${{ matrix.artifact_name }}/c_api/
+        cp src/c_api/yasat.cpp dist/${{ matrix.artifact_name }}/c_api/
+
+        # Language bindings
+        cp -r bindings/python dist/${{ matrix.artifact_name }}/
+        cp -r bindings/go dist/${{ matrix.artifact_name }}/
+
+        # Documentation
         cp README.md LICENSE dist/${{ matrix.artifact_name }}/ || cp Readme.md license.txt dist/${{ matrix.artifact_name }}/ || true
+
+        # Create archive
         cd dist && tar czf ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz ${{ matrix.artifact_name }}
         cd ..
         shasum -a 256 dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz > dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz.sha256
@@ -149,11 +183,28 @@ jobs:
       shell: msys2 {0}
       run: |
         mkdir -p dist/${{ matrix.artifact_name }}
+
+        # Binary and libraries
         cp build/yasat.exe dist/${{ matrix.artifact_name }}/ || cp build/yasat dist/${{ matrix.artifact_name }}/yasat.exe || true
         cp build/yasat.dll dist/${{ matrix.artifact_name }}/ || true
         cp build/libyasat.a dist/${{ matrix.artifact_name }}/ || true
+
+        # Headers
         cp -r src/headers dist/${{ matrix.artifact_name }}/include
+
+        # C API
+        mkdir -p dist/${{ matrix.artifact_name }}/c_api
+        cp src/c_api/yasat.h dist/${{ matrix.artifact_name }}/c_api/
+        cp src/c_api/yasat.cpp dist/${{ matrix.artifact_name }}/c_api/
+
+        # Language bindings
+        cp -r bindings/python dist/${{ matrix.artifact_name }}/
+        cp -r bindings/go dist/${{ matrix.artifact_name }}/
+
+        # Documentation
         cp README.md LICENSE dist/${{ matrix.artifact_name }}/ || cp Readme.md license.txt dist/${{ matrix.artifact_name }}/ || true
+
+        # Create archive
         cd dist && zip -r ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip ${{ matrix.artifact_name }}
         cd ..
         sha256sum dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip > dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip.sha256

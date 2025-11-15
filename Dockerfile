@@ -42,7 +42,9 @@ RUN apt-get update && \
 # Create directories
 RUN mkdir -p /usr/local/bin \
              /usr/local/lib \
-             /usr/local/include/yasat
+             /usr/local/include/yasat \
+             /usr/local/include/yasat/c_api \
+             /usr/local/share/yasat/bindings
 
 # Copy binary from builder
 COPY --from=builder /build/build/yasat /usr/local/bin/yasat
@@ -51,8 +53,15 @@ COPY --from=builder /build/build/yasat /usr/local/bin/yasat
 COPY --from=builder /build/build/libyasat.so* /usr/local/lib/
 COPY --from=builder /build/build/libyasat.a /usr/local/lib/
 
-# Copy headers from builder
+# Copy C++ headers from builder
 COPY --from=builder /build/src/headers/*.h /usr/local/include/yasat/
+
+# Copy C API headers from builder
+COPY --from=builder /build/src/c_api/yasat.h /usr/local/include/yasat/c_api/
+COPY --from=builder /build/src/c_api/yasat.cpp /usr/local/include/yasat/c_api/
+
+# Copy language bindings
+COPY --from=builder /build/bindings/ /usr/local/share/yasat/bindings/
 
 # Create symlinks for shared library
 RUN cd /usr/local/lib && \
@@ -66,7 +75,8 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
 # Verify installation
 RUN yasat --help || true && \
     ls -lh /usr/local/lib/libyasat* && \
-    ls -lh /usr/local/include/yasat/
+    ls -lh /usr/local/include/yasat/ && \
+    ls -lh /usr/local/share/yasat/bindings/
 
 # Set working directory for user data
 WORKDIR /data

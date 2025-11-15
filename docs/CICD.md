@@ -7,10 +7,11 @@ YASAT uses GitHub Actions for continuous integration, automated releases, and Do
 ## Table of Contents
 
 1. [CI Pipeline](#ci-pipeline)
-2. [Release Process](#release-process)
-3. [Docker Images](#docker-images)
-4. [Package Distribution](#package-distribution)
-5. [Development Workflow](#development-workflow)
+2. [Language Bindings](#language-bindings)
+3. [Release Process](#release-process)
+4. [Docker Images](#docker-images)
+5. [Package Distribution](#package-distribution)
+6. [Development Workflow](#development-workflow)
 
 ---
 
@@ -53,12 +54,118 @@ Builds and tests on multiple platforms and configurations:
 - Runs `cppcheck` for static analysis
 - Compiles with `-Werror` to catch all warnings
 
+**What it tests (Linux/Release only):**
+- C API tests: 24 tests
+- Python binding tests: 25 tests
+- Go binding tests: 17 tests
+- Total: 82 tests across all language bindings
+
 **View CI Results:**
 
 Visit the Actions tab in your GitHub repository to see CI runs:
 ```
 https://github.com/yousfiSaad/yasat/actions
 ```
+
+---
+
+## Language Bindings
+
+YASAT provides a C API and bindings for multiple languages, all automatically tested in CI/CD.
+
+### C API
+
+Located in `src/c_api/`, provides a clean C interface to the SAT solver:
+
+```c
+#include <yasat.h>
+
+// Create solver
+yasat_solver* solver = yasat_solver_create();
+
+// Add clauses (example: (1 OR 2) AND (NOT 1 OR 3))
+yasat_add_clause(solver, (int[]){1, 2, 0}, 3);
+yasat_add_clause(solver, (int[]){-1, 3, 0}, 3);
+
+// Solve
+yasat_result result = yasat_solve(solver);
+
+// Clean up
+yasat_solver_destroy(solver);
+```
+
+**C API Testing in CI:**
+- 24 comprehensive tests
+- Memory leak detection
+- Edge case handling
+
+### Python Bindings
+
+Located in `bindings/python/`, provides a Pythonic interface:
+
+```python
+from yasat import Solver
+
+solver = Solver()
+solver.add_clause([1, 2])     # (1 OR 2)
+solver.add_clause([-1, 3])    # (NOT 1 OR 3)
+
+if solver.solve():
+    print("SAT")
+    print(solver.get_assignment())
+else:
+    print("UNSAT")
+```
+
+**Python Testing in CI:**
+- 25 comprehensive tests
+- Installation via `setup.py`
+- Compatible with Python 3.7+
+
+**Install from source:**
+```bash
+cd bindings/python
+python setup.py install
+```
+
+### Go Bindings
+
+Located in `bindings/go/`, provides idiomatic Go interface:
+
+```go
+import "github.com/yousfiSaad/yasat/bindings/go/yasat"
+
+solver, _ := yasat.NewSolver()
+defer solver.Close()
+
+solver.AddClause([]int{1, 2})    // (1 OR 2)
+solver.AddClause([]int{-1, 3})   // (NOT 1 OR 3)
+
+if sat, _ := solver.Solve(); sat {
+    fmt.Println("SAT")
+    fmt.Println(solver.GetAssignment())
+} else {
+    fmt.Println("UNSAT")
+}
+```
+
+**Go Testing in CI:**
+- 17 comprehensive tests
+- Full Go module support (`go.mod`)
+- Compatible with Go 1.21+
+
+**Install:**
+```bash
+go get github.com/yousfiSaad/yasat/bindings/go/yasat
+```
+
+### CI/CD Integration
+
+All language bindings are:
+- ✅ Automatically tested on every PR/push (Linux)
+- ✅ Included in release packages
+- ✅ Available in Docker images (`/usr/local/share/yasat/bindings/`)
+- ✅ Documented with examples and tests
 
 ---
 
@@ -102,7 +209,10 @@ Examples:
    - Binary executable (`yasat` or `yasat.exe`)
    - Shared library (`.so`, `.dylib`, or `.dll`)
    - Static library (`.a`)
-   - Header files (`include/` directory)
+   - C++ header files (`include/` directory)
+   - C API (`c_api/` directory)
+   - Python bindings (`python/` directory)
+   - Go bindings (`go/` directory)
    - README and license files
    - SHA256 checksum file
 
