@@ -21,10 +21,12 @@ jobs:
 
     - name: Build (Release)
       run: |
+        chmod +x build.sh
         ./build.sh
 
     - name: Run tests
       run: |
+        chmod +x tests/run_tests.sh
         ./tests/run_tests.sh
 
     - name: Clean build
