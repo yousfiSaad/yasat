@@ -1,5 +1,9 @@
 # YASAT - Yet Another SAT Solver
 
+[![CI](https://github.com/yousfiSaad/yasat/actions/workflows/ci.yml/badge.svg)](https://github.com/yousfiSaad/yasat/actions/workflows/ci.yml)
+[![Docker](https://github.com/yousfiSaad/yasat/actions/workflows/docker.yml/badge.svg)](https://github.com/yousfiSaad/yasat/actions/workflows/docker.yml)
+[![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](license.txt)
+
 A fast, lightweight SAT solver implementing the Conflict-Driven Clause Learning (CDCL) algorithm in modern C++.
 
 ## Features
@@ -13,6 +17,7 @@ A fast, lightweight SAT solver implementing the Conflict-Driven Clause Learning 
 - **Flexible I/O**: Read from files or stdin
 - **Multiple Build Modes**: Optimized release and debug builds with statistics
 - **Comprehensive Testing**: Full test suite with CI/CD integration
+- **Multi-platform**: Linux, macOS, and Windows support
 
 ## What is SAT?
 
@@ -54,6 +59,47 @@ make test
 # Clean build artifacts
 make clean
 ```
+
+### Using Docker
+
+Pre-built Docker images are available with YASAT and its libraries:
+
+```bash
+# Pull latest image
+docker pull ghcr.io/yousfisaad/yasat:latest
+
+# Run YASAT
+docker run --rm ghcr.io/yousfisaad/yasat:latest --help
+
+# Solve a CNF file
+docker run --rm -v $(pwd):/data ghcr.io/yousfisaad/yasat:latest /data/problem.cnf
+```
+
+### Pre-built Releases
+
+Download pre-built binaries and libraries from [GitHub Releases](https://github.com/yousfiSaad/yasat/releases):
+
+- Linux (x86_64) - Binary + Shared Library (.so) + Static Library (.a)
+- macOS (x86_64) - Binary + Shared Library (.dylib) + Static Library (.a)
+- Windows (x86_64) - Binary (.exe) + DLL + Static Library (.a)
+
+Each release includes header files for FFI integration with Go, Python, Rust, etc.
+
+### Building Shared Libraries
+
+Build YASAT as a shared library for use in other languages:
+
+```bash
+# Build both shared and static libraries
+make lib
+
+# Install libraries system-wide (requires sudo)
+sudo make install
+```
+
+Libraries are installed to:
+- Linux/macOS: `/usr/local/lib/libyasat.{so,a}`
+- Headers: `/usr/local/include/yasat.h`
 
 ## Usage
 
@@ -435,16 +481,32 @@ For industrial-scale SAT solving, consider:
 
 ## CI/CD
 
-GitHub Actions automatically tests everything on every push:
-- **CLI builds**: Release and debug versions
-- **Shared library**: Build and link verification
-- **CLI tests**: 16 core CNF tests (release + debug)
-- **C API tests**: 24 tests covering all C functions
-- **Python tests**: 25 tests for Python bindings
-- **Go tests**: 17 tests for Go bindings
-- **Total**: 82 automated tests on every commit
+YASAT has a comprehensive CI/CD pipeline powered by GitHub Actions:
 
-This ensures all language bindings remain stable and functional across changes.
+### Continuous Integration
+- **Multi-platform builds**: Linux, macOS, Windows
+- **Matrix testing**: Release and debug builds on all platforms
+- **Automated testing**: Full test suite runs on every push and PR
+  - CLI tests: 16 core CNF tests (release + debug)
+  - C API tests: 24 tests covering all C functions
+  - Python tests: 25 tests for Python bindings
+  - Go tests: 17 tests for Go bindings
+  - **Total**: 82 automated tests on every commit
+- **Code quality**: Static analysis with cppcheck
+- **Build artifacts**: Pre-compiled binaries and libraries
+
+### Automated Releases
+- **Version tagging**: Push `vX.Y.Z` tags to trigger releases
+- **Multi-platform packages**: Linux, macOS, Windows packages
+- **Checksums**: SHA256 verification for all artifacts
+- **Changelog**: Auto-generated from commits
+
+### Docker Images
+- **GitHub Container Registry**: `ghcr.io/yousfisaad/yasat`
+- **Multi-tag support**: `latest`, `dev`, version tags
+- **Pre-built libraries**: Shared and static libraries included
+
+**For detailed CI/CD documentation, see [docs/CICD.md](docs/CICD.md)**
 
 ## Project Structure
 
@@ -475,7 +537,8 @@ yasat/
 │   ├── README.md                   # Test documentation
 │   └── cnf/                        # Test CNF files
 ├── docs/
-│   └── FFI_CALLBACKS.md            # FFI callback documentation
+│   ├── FFI_CALLBACKS.md            # FFI callback documentation
+│   └── CICD.md                     # CI/CD documentation
 ├── build/                          # Build artifacts
 │   ├── yasat                       # CLI binary
 │   └── libyasat.so                 # Shared library

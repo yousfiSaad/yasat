@@ -8,11 +8,18 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    name: Build & Test (${{ matrix.os }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        mode: [release, debug]
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -24,62 +31,179 @@ jobs:
       with:
         go-version: '1.21'
 
-    - name: Install dependencies
+    - name: Install dependencies (Ubuntu)
+      if: runner.os == 'Linux'
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential g++ make
 
-    - name: Build CLI (Release)
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install make gcc
+
+    - name: Build binary (${{ matrix.mode }})
       run: |
         chmod +x build.sh
-        ./build.sh
+        make ${{ matrix.mode }}
 
-    - name: Run CLI tests (Release)
+    - name: Run CLI tests
       run: |
         chmod +x tests/run_tests.sh
         ./tests/run_tests.sh
 
-    - name: Build CLI (Debug)
+    - name: Build libraries (release only)
+      if: matrix.mode == 'release'
       run: |
-        make clean
-        make debug
-
-    - name: Run CLI tests (Debug)
-      run: |
-        ./tests/run_tests.sh
-
-    - name: Build shared library
-      run: |
-        make clean
         make lib
 
-    - name: Build and run C API tests
+    - name: Build and run C API tests (release only)
+      if: matrix.mode == 'release'
       run: |
         gcc -o build/test_c_api tests/test_c_api.c -Lbuild -lyasat -I.
         LD_LIBRARY_PATH=build ./build/test_c_api
 
-    - name: Run Python binding tests
+    - name: Run Python binding tests (release only)
+      if: matrix.mode == 'release'
       run: |
         cd bindings/python/tests
         LD_LIBRARY_PATH=../../../build python3 test_yasat.py -v
 
-    - name: Run Go binding tests
+    - name: Run Go binding tests (release only)
+      if: matrix.mode == 'release'
       run: |
         cd bindings/go/yasat
         LD_LIBRARY_PATH=../../../build go test -v
+
+    - name: List build artifacts (release only)
+      if: matrix.mode == 'release'
+      run: |
+        ls -lh build/
+        file build/yasat
+        file build/lib* || true
+
+    - name: Upload binary artifact
+      if: matrix.mode == 'release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: yasat-${{ runner.os }}-binary
+        path: build/yasat
+        retention-days: 7
+
+    - name: Upload shared library
+      if: matrix.mode == 'release' && runner.os == 'Linux'
+      uses: actions/upload-artifact@v4
+      with:
+        name: yasat-${{ runner.os }}-shared-lib
+        path: |
+          build/libyasat.so*
+        retention-days: 7
+
+    - name: Upload shared library (macOS)
+      if: matrix.mode == 'release' && runner.os == 'macOS'
+      uses: actions/upload-artifact@v4
+      with:
+        name: yasat-${{ runner.os }}-shared-lib
+        path: |
+          build/libyasat*.dylib
+        retention-days: 7
+
+    - name: Upload static library
+      if: matrix.mode == 'release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: yasat-${{ runner.os }}-static-lib
+        path: build/libyasat.a
+        retention-days: 7
 
     - name: Display build summary
       run: |
         echo "✅ All tests passed!"
         echo ""
-        echo "Test Summary:"
-        echo "- CLI tests: 16 tests (release + debug)"
-        echo "- C API tests: 24 tests"
-        echo "- Python tests: 25 tests"
-        echo "- Go tests: 17 tests"
-        echo "- Total: 82 tests"
-        echo ""
         echo "Build info:"
         g++ --version
         python3 --version
         go version
+        ldd build/yasat || otool -L build/yasat || true
+
+  windows-build:
+    name: Build & Test (Windows)
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-make
+          make
+
+    - name: Build binary (release)
+      run: |
+        make release
+
+    - name: Run tests
+      run: |
+        chmod +x tests/run_tests.sh
+        ./tests/run_tests.sh
+
+    - name: Build libraries
+      run: |
+        make lib
+
+    - name: List build artifacts
+      run: |
+        ls -lh build/
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: yasat-Windows-binary
+        path: build/yasat.exe
+        retention-days: 7
+        if-no-files-found: warn
+
+    - name: Upload DLL
+      uses: actions/upload-artifact@v4
+      with:
+        name: yasat-Windows-shared-lib
+        path: build/yasat.dll
+        retention-days: 7
+        if-no-files-found: warn
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++ make cppcheck
+
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=warning,style,performance,portability \
+                 --std=c++17 \
+                 --suppress=missingIncludeSystem \
+                 --error-exitcode=0 \
+                 src/
+      continue-on-error: true
+
+    - name: Check compilation warnings
+      run: |
+        make clean
+        CXXFLAGS="-std=c++17 -Wall -Wextra -Wpedantic -Werror" make release
