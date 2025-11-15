@@ -19,19 +19,28 @@ BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/objects
 LIB_OBJ_DIR = $(BUILD_DIR)/lib_objects
 SRC_DIR = src
-INCLUDE_DIR = $(SRC_DIR)/headers
+INSTALL_PREFIX ?= /usr/local
 
-# Source files
-SOLVER_SRC = $(SRC_DIR)/implementations/CDCL_solver.cpp
-MAIN_SRC = $(SRC_DIR)/main.cpp
+# Source files for CLI
+CLI_SOURCES = $(SRC_DIR)/main.cpp $(SRC_DIR)/implementations/CDCL_solver.cpp
+CLI_OBJECTS = $(OBJ_DIR)/main.o $(OBJ_DIR)/CDCL_solver.o
+CLI_TARGET = $(BUILD_DIR)/yasat
 
-# Object files
-MAIN_OBJ = $(OBJ_DIR)/main.o
-SOLVER_OBJ = $(OBJ_DIR)/CDCL_solver.o
-SOLVER_PIC_OBJ = $(LIB_OBJ_DIR)/CDCL_solver.o
+# Source files for shared library
+LIB_SOURCES = $(SRC_DIR)/implementations/CDCL_solver.cpp $(SRC_DIR)/c_api/yasat.cpp
+LIB_OBJECTS = $(LIB_OBJ_DIR)/CDCL_solver.o $(LIB_OBJ_DIR)/yasat.o
 
-# Binary target
-TARGET = $(BUILD_DIR)/yasat
+# Detect platform for shared library extension
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    LIB_EXT = dylib
+    LIB_FLAGS = -dynamiclib -install_name @rpath/libyasat.$(LIB_EXT)
+else
+    LIB_EXT = so
+    LIB_FLAGS = -shared
+endif
+
+LIB_TARGET = $(BUILD_DIR)/libyasat.$(LIB_EXT)
 
 # Library targets
 LIB_NAME = yasat
@@ -72,79 +81,89 @@ else
 endif
 
 # Phony targets
-.PHONY: all clean debug release test help lib shared static install
+.PHONY: all clean debug release test help lib install uninstall
 
-# Default target
-all: release
+# Default target - build both CLI and library
+all: release lib
 
-# Release build
+# Release build (CLI only)
 release:
-	@$(MAKE) $(TARGET) MODE=release
+	@$(MAKE) $(CLI_TARGET) MODE=release
 
-# Debug build
+# Debug build (CLI only)
 debug:
-	@$(MAKE) $(TARGET) MODE=debug
-
-# Build all libraries
-lib: shared static
+	@$(MAKE) $(CLI_TARGET) MODE=debug
 
 # Build shared library
-shared:
-	@$(MAKE) $(SHARED_LIB) MODE=release
+lib:
+	@$(MAKE) $(LIB_TARGET) MODE=release
 
-# Build static library
-static:
-	@$(MAKE) $(STATIC_LIB) MODE=release
+# Build shared library in debug mode
+lib-debug:
+	@$(MAKE) $(LIB_TARGET) MODE=debug
 
-# Build directories
-$(OBJ_DIR):
-	@mkdir -p $(OBJ_DIR)
-
-$(LIB_OBJ_DIR):
-	@mkdir -p $(LIB_OBJ_DIR)
-
-# Main binary target
-$(TARGET): $(OBJ_DIR) $(MAIN_OBJ) $(SOLVER_OBJ)
-	@echo "Linking $(TARGET)..."
-	$(CXX) $(LDFLAGS) -o $@ $(MAIN_OBJ) $(SOLVER_OBJ)
-	@echo "Build complete: $(TARGET)"
+# CLI target
+$(CLI_TARGET): $(CLI_OBJECTS)
+	@echo "Linking $(CLI_TARGET)..."
+	$(CXX) $(LDFLAGS) -o $@ $^
+	@echo "Build complete: $(CLI_TARGET)"
 
 # Shared library target
-$(SHARED_LIB): $(LIB_OBJ_DIR) $(SOLVER_PIC_OBJ)
-	@echo "Building shared library $(SHARED_LIB)..."
-	$(CXX) $(SHARED_FLAGS) -o $@ $(SOLVER_PIC_OBJ)
-ifneq ($(SHARED_LIB),$(SHARED_LIB_LINK))
-	@cd $(BUILD_DIR) && ln -sf $(notdir $(SHARED_LIB)) $(notdir $(SHARED_LIB_LINK))
-endif
-	@echo "Shared library built: $(SHARED_LIB)"
+$(LIB_TARGET): $(LIB_OBJECTS)
+	@echo "Linking shared library $(LIB_TARGET)..."
+	$(CXX) $(LIB_FLAGS) $(LDFLAGS) -o $@ $^
+	@echo "Build complete: $(LIB_TARGET)"
 
-# Static library target
-$(STATIC_LIB): $(LIB_OBJ_DIR) $(SOLVER_PIC_OBJ)
-	@echo "Building static library $(STATIC_LIB)..."
-	ar rcs $@ $(SOLVER_PIC_OBJ)
-	@echo "Static library built: $(STATIC_LIB)"
-
-# Compile main.o (no PIC needed for executable)
-$(MAIN_OBJ): $(MAIN_SRC) | $(OBJ_DIR)
+# Compile CLI objects (without -fPIC)
+$(OBJ_DIR)/main.o: $(SRC_DIR)/main.cpp
+	@mkdir -p $(OBJ_DIR)
 	@echo "Compiling $<..."
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-# Compile CDCL_solver.o (no PIC for executable)
-$(SOLVER_OBJ): $(SOLVER_SRC) | $(OBJ_DIR)
+$(OBJ_DIR)/CDCL_solver.o: $(SRC_DIR)/implementations/CDCL_solver.cpp
+	@mkdir -p $(OBJ_DIR)
 	@echo "Compiling $<..."
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-# Compile CDCL_solver.o with PIC (for shared library)
-$(SOLVER_PIC_OBJ): $(SOLVER_SRC) | $(LIB_OBJ_DIR)
+# Compile library objects (with -fPIC for position-independent code)
+$(LIB_OBJ_DIR)/CDCL_solver.o: $(SRC_DIR)/implementations/CDCL_solver.cpp
+	@mkdir -p $(LIB_OBJ_DIR)
 	@echo "Compiling $< (PIC)..."
 	$(CXX) $(CXXFLAGS) -fPIC -c -o $@ $<
+
+$(LIB_OBJ_DIR)/yasat.o: $(SRC_DIR)/c_api/yasat.cpp
+	@mkdir -p $(LIB_OBJ_DIR)
+	@echo "Compiling $< (PIC)..."
+	$(CXX) $(CXXFLAGS) -fPIC -c -o $@ $<
+
+# Install targets
+install: lib $(CLI_TARGET)
+	@echo "Installing YASAT..."
+	install -d $(INSTALL_PREFIX)/lib
+	install -d $(INSTALL_PREFIX)/include
+	install -d $(INSTALL_PREFIX)/bin
+	install -m 755 $(LIB_TARGET) $(INSTALL_PREFIX)/lib/
+	install -m 644 $(SRC_DIR)/c_api/yasat.h $(INSTALL_PREFIX)/include/
+	install -m 755 $(CLI_TARGET) $(INSTALL_PREFIX)/bin/
+	@echo "Installation complete."
+	@echo "Library: $(INSTALL_PREFIX)/lib/libyasat.$(LIB_EXT)"
+	@echo "Header:  $(INSTALL_PREFIX)/include/yasat.h"
+	@echo "Binary:  $(INSTALL_PREFIX)/bin/yasat"
+
+# Uninstall
+uninstall:
+	@echo "Uninstalling YASAT..."
+	rm -f $(INSTALL_PREFIX)/lib/libyasat.so
+	rm -f $(INSTALL_PREFIX)/lib/libyasat.dylib
+	rm -f $(INSTALL_PREFIX)/include/yasat.h
+	rm -f $(INSTALL_PREFIX)/bin/yasat
+	@echo "Uninstall complete."
 
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
-	rm -f $(TARGET) $(OBJ_DIR)/*.o $(LIB_OBJ_DIR)/*.o
-	rm -f $(SHARED_LIB) $(SHARED_LIB_LINK) $(STATIC_LIB)
-	rm -f $(BUILD_DIR)/*.so* $(BUILD_DIR)/*.dylib* $(BUILD_DIR)/*.dll $(BUILD_DIR)/*.a
+	rm -f $(CLI_TARGET) $(LIB_TARGET)
+	rm -f $(OBJ_DIR)/*.o $(LIB_OBJ_DIR)/*.o
 	@echo "Clean complete."
 
 # Run tests
@@ -183,23 +202,28 @@ help:
 	@echo "YASAT Build System"
 	@echo ""
 	@echo "Targets:"
-	@echo "  all         Build release binary (default)"
-	@echo "  release     Build optimized release binary"
-	@echo "  debug       Build debug binary with symbols"
-	@echo "  lib         Build both shared and static libraries"
-	@echo "  shared      Build shared library (.so/.dylib/.dll)"
-	@echo "  static      Build static library (.a)"
-	@echo "  clean       Remove all build artifacts"
+	@echo "  all         Build CLI and shared library (default)"
+	@echo "  release     Build optimized CLI version"
+	@echo "  debug       Build debug CLI version"
+	@echo "  lib         Build shared library (release)"
+	@echo "  lib-debug   Build shared library (debug)"
+	@echo "  install     Install library, headers, and binary"
+	@echo "  uninstall   Remove installed files"
+	@echo "  clean       Remove build artifacts"
 	@echo "  test        Build and run test suite"
 	@echo "  install     Install libraries and headers (requires sudo)"
 	@echo "  uninstall   Uninstall libraries and headers (requires sudo)"
 	@echo "  help        Show this help message"
 	@echo ""
+	@echo "Variables:"
+	@echo "  INSTALL_PREFIX  Installation prefix (default: /usr/local)"
+	@echo ""
 	@echo "Examples:"
-	@echo "  make              # Build release binary"
-	@echo "  make debug        # Build debug binary"
-	@echo "  make lib          # Build shared and static libraries"
-	@echo "  make shared       # Build only shared library"
+	@echo "  make              # Build CLI and library"
+	@echo "  make lib          # Build library only"
+	@echo "  make debug        # Build debug CLI"
+	@echo "  make install      # Install to /usr/local"
+	@echo "  make install INSTALL_PREFIX=~/.local  # Install to home"
 	@echo "  make clean        # Clean build artifacts"
 	@echo "  make test         # Run tests"
 	@echo "  sudo make install # Install to /usr/local"
