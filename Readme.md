@@ -354,12 +354,32 @@ cat tests/README.md
 
 ### Test Coverage
 
+**Core Tests:**
 - ✓ Simple SAT instances
 - ✓ Simple UNSAT instances
 - ✓ Empty formulas (edge cases)
 - ✓ Multi-variable formulas
 - ✓ Pigeonhole principle problems
 - ✓ Input validation tests
+
+**C API Tests:**
+- ✓ 24 tests covering all C API functions
+- ✓ Solver lifecycle, clause addition, parsing, solving
+- ✓ Error handling and edge cases
+
+**Language Binding Tests:**
+- ✓ **Go**: 17 tests with benchmarks (`bindings/go/yasat/yasat_test.go`)
+- ✓ **Python**: 25 tests across 9 test classes (`bindings/python/tests/test_yasat.py`)
+
+Run binding tests:
+```bash
+# Go tests
+export LD_LIBRARY_PATH=$PWD/build:$LD_LIBRARY_PATH
+cd bindings/go/yasat && go test -v
+
+# Python tests
+cd bindings/python/tests && python test_yasat.py -v
+```
 
 ## Development
 

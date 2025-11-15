@@ -347,7 +347,8 @@ int yasat_get_num_clauses(yasat_solver* solver) {
 
     if (!solver->cpp_solver) {
         // If solver not yet created, return the tracked count
-        return solver->clauses_added;
+        // For parsed CNF, use num_clauses; for manually added, use clauses_added
+        return solver->num_clauses > 0 ? solver->num_clauses : solver->clauses_added;
     }
 
     try {

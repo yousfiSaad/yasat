@@ -164,6 +164,37 @@ python simple.py
 python simple.py ../../../tests/cnf/multi_sat.cnf
 ```
 
+## Running Tests
+
+The Python bindings include a comprehensive test suite:
+
+```bash
+# From yasat root directory
+make lib
+export LD_LIBRARY_PATH=$PWD/build:$LD_LIBRARY_PATH
+
+# Run tests with unittest
+cd bindings/python/tests
+python test_yasat.py -v
+
+# Or with pytest (if installed)
+pytest test_yasat.py -v
+
+# Run specific test class
+python test_yasat.py TestSimpleSAT -v
+
+# Run with coverage (requires pytest-cov)
+pytest test_yasat.py --cov=yasat --cov-report=html
+```
+
+**Test Coverage:**
+- 25 test methods across 9 test classes
+- All API methods tested
+- Integration tests with real CNF files
+- Error handling and edge cases
+- Context manager behavior
+- Convenience functions
+
 ## Type Hints
 
 The bindings include full type hints for better IDE support:

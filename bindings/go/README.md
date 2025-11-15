@@ -174,6 +174,35 @@ go run simple.go
 go run simple.go ../../../tests/cnf/multi_sat.cnf
 ```
 
+## Running Tests
+
+The Go bindings include a comprehensive test suite:
+
+```bash
+# From yasat root directory
+make lib
+export LD_LIBRARY_PATH=$PWD/build:$LD_LIBRARY_PATH
+
+# Run tests
+cd bindings/go/yasat
+go test -v
+
+# Run specific test
+go test -v -run TestSimpleSAT
+
+# Run with coverage
+go test -cover
+
+# Run benchmarks
+go test -bench=.
+```
+
+**Test Coverage:**
+- 17 test functions covering all API methods
+- Integration tests with real CNF files
+- Error handling and edge cases
+- Benchmarks for performance testing
+
 ## Building Your Application
 
 When building applications that use these bindings:

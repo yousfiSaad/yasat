@@ -17,7 +17,7 @@ Basic usage:
     ...     print("UNSAT")
 """
 
-from .solver import Solver, Result
+from .solver import Solver, Result, YasatError, solve_file
 
 __version__ = "1.0.0"
-__all__ = ["Solver", "Result"]
+__all__ = ["Solver", "Result", "YasatError", "solve_file"]
