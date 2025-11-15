@@ -14,37 +14,72 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential g++ make
 
-    - name: Build (Release)
+    - name: Build CLI (Release)
       run: |
         chmod +x build.sh
         ./build.sh
 
-    - name: Run tests
+    - name: Run CLI tests (Release)
       run: |
         chmod +x tests/run_tests.sh
         ./tests/run_tests.sh
 
-    - name: Clean build
+    - name: Build CLI (Debug)
       run: |
-        make clean || true
+        make clean
+        make debug
 
-    - name: Build (Debug)
-      run: |
-        mkdir -p build/objects
-        g++ -g -DDEBUG -O0 -c -o build/objects/main.o src/main.cpp
-        g++ -g -DDEBUG -O0 -c -o build/objects/CDCL_solver.o src/implementations/CDCL_solver.cpp
-        g++ -o build/yasat build/objects/main.o build/objects/CDCL_solver.o
-
-    - name: Run tests (Debug)
+    - name: Run CLI tests (Debug)
       run: |
         ./tests/run_tests.sh
 
-    - name: Display build info
+    - name: Build shared library
       run: |
-        echo "Build completed successfully!"
+        make clean
+        make lib
+
+    - name: Build and run C API tests
+      run: |
+        gcc -o build/test_c_api tests/test_c_api.c -Lbuild -lyasat -I.
+        LD_LIBRARY_PATH=build ./build/test_c_api
+
+    - name: Run Python binding tests
+      run: |
+        cd bindings/python/tests
+        LD_LIBRARY_PATH=../../../build python3 test_yasat.py -v
+
+    - name: Run Go binding tests
+      run: |
+        cd bindings/go/yasat
+        LD_LIBRARY_PATH=../../../build go test -v
+
+    - name: Display build summary
+      run: |
+        echo "✅ All tests passed!"
+        echo ""
+        echo "Test Summary:"
+        echo "- CLI tests: 16 tests (release + debug)"
+        echo "- C API tests: 24 tests"
+        echo "- Python tests: 25 tests"
+        echo "- Go tests: 17 tests"
+        echo "- Total: 82 tests"
+        echo ""
+        echo "Build info:"
         g++ --version
+        python3 --version
+        go version
