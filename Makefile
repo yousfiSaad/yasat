@@ -1,8 +1,8 @@
 
 main: build/yasat
 
-clean: 
-	rm build/* build/objects/*
+clean:
+	rm -f build/yasat build/objects/*.o
 
 build/objects/CDCL_solver.o: ./src/implementations/CDCL_solver.cpp
 	g++ -O3 -c -o $@ $<

@@ -1,0 +1,3 @@
+c Empty CNF - no clauses
+c Should be SAT (no constraints to violate)
+p cnf 3 0

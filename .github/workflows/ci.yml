@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev, claude/** ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++ make
+
+    - name: Build (Release)
+      run: |
+        ./build.sh
+
+    - name: Run tests
+      run: |
+        ./tests/run_tests.sh
+
+    - name: Clean build
+      run: |
+        make clean || true
+
+    - name: Build (Debug)
+      run: |
+        mkdir -p build/objects
+        g++ -g -DDEBUG -O0 -c -o build/objects/main.o src/main.cpp
+        g++ -g -DDEBUG -O0 -c -o build/objects/CDCL_solver.o src/implementations/CDCL_solver.cpp
+        g++ -o build/yasat build/objects/main.o build/objects/CDCL_solver.o
+
+    - name: Run tests (Debug)
+      run: |
+        ./tests/run_tests.sh
+
+    - name: Display build info
+      run: |
+        echo "Build completed successfully!"
+        g++ --version
