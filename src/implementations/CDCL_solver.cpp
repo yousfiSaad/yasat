@@ -426,7 +426,7 @@ CDCL_solver::CDCL_solver(std::istream &in)
     : number_of_variables_set{0}, R{MAX_RESTART}, number_of_variables{0}
 #ifdef DEBUG
       ,
-      maxLevels{0}, maxCnfSize{0}, maxClauseSize{0},
+      maxLevels{0}, maxCnfSize{0}, maxClauseSize{0}
 #endif
 {
   parseCnf(in);
