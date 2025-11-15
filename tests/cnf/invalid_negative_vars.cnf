@@ -1,0 +1,3 @@
+c Invalid CNF - negative variable count
+p cnf -1 2
+1 2 0

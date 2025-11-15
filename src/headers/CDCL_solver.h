@@ -26,7 +26,7 @@ struct clause
   vector_of_literals literals;
   bool sat;
   clause() : sat{false} {}
-  clause(std::istream& in);
+  clause(std::istream& in, int num_variables);
 };
 typedef std::vector<clause> vector_of_clauses;
 

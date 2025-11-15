@@ -1,0 +1,8 @@
+c Small UNSAT case requiring search
+c (a OR b) AND (NOT a OR b) AND (a OR NOT b) AND (NOT a OR NOT b)
+c Forces a=T and a=F, contradiction found through search
+p cnf 2 4
+1 2 0
+-1 2 0
+1 -2 0
+-1 -2 0
