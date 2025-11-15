@@ -1,0 +1,6 @@
+c Edge case: All positive literals
+c (x1 OR x2) AND (x1 OR x3)
+c SAT: x1=1 satisfies both
+p cnf 3 2
+1 2 0
+1 3 0

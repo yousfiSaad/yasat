@@ -1,0 +1,6 @@
+c Edge case: Single unit clause
+c Forces x1 = true
+c Then (x1 OR x2) is satisfied
+p cnf 2 2
+1 0
+1 2 0

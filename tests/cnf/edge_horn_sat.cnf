@@ -1,0 +1,7 @@
+c Edge case: Horn clauses (at most one positive literal per clause)
+c Horn SAT is polynomial-time solvable
+c (NOT x1 OR NOT x2 OR x3) AND (NOT x3 OR x4) AND (x1)
+p cnf 4 3
+-1 -2 3 0
+-3 4 0
+1 0

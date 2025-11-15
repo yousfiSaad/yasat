@@ -1,0 +1,6 @@
+c Edge case: Minimal UNSAT - just 2 clauses
+c x1 AND NOT x1
+c Smallest possible UNSAT formula
+p cnf 1 2
+1 0
+-1 0

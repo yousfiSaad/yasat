@@ -1,0 +1,6 @@
+c Edge case: Many variables (10) but very few constraints (2)
+c Highly underconstrained - many possible solutions
+c (x1 OR x2) AND (NOT x9 OR NOT x10)
+p cnf 10 2
+1 2 0
+-9 -10 0
