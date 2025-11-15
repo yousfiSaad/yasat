@@ -1,0 +1,35 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Documentation
+docs/
+*.md
+!Readme.md
+
+# Tests (not needed in Docker image)
+tests/
+
+# Data files (not needed for build)
+data/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
