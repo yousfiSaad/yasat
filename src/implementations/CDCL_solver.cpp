@@ -460,30 +460,88 @@ vector_of_clauses CDCL_solver::getCleanedCnf() const {
 void CDCL_solver::parseCnf(std::istream &in) {
   std::string sline;
   int n_clauses = 0;
+  bool header_found = false;
+
+  // Parse header
   while (std::getline(in, sline)) {
+    // Skip empty lines
+    if (sline.empty())
+      continue;
+
+    // Skip comment lines
     if (sline[0] == 'c')
       continue;
-    std::stringstream ss{sline};
+
+    // Parse problem line
     if (sline[0] == 'p') {
-      ss >> sline >> sline;
-      ss >> number_of_variables >> n_clauses;
+      std::stringstream ss{sline};
+      std::string p, cnf;
+      ss >> p >> cnf >> number_of_variables >> n_clauses;
+
+      // Validate header format
+      if (p != "p" || cnf != "cnf") {
+        throw std::runtime_error("Invalid CNF header: expected 'p cnf <vars> <clauses>'");
+      }
+
+      // Validate that header was parsed successfully
+      if (ss.fail()) {
+        throw std::runtime_error("Invalid CNF header: failed to parse variable/clause counts");
+      }
+
+      // Validate variable count
+      if (number_of_variables <= 0) {
+        throw std::runtime_error("Invalid CNF: number of variables must be positive");
+      }
+
+      // Validate clause count
+      if (n_clauses < 0) {
+        throw std::runtime_error("Invalid CNF: number of clauses cannot be negative");
+      }
+
+      // Initialize data structures
       values.resize(2 * number_of_variables);
       index.resize(2 * number_of_variables);
       causes.resize(2 * number_of_variables);
       levels.resize(2 * number_of_variables);
+
+      header_found = true;
       break;
     }
+
+    // Non-comment, non-header line before header
+    throw std::runtime_error("Invalid CNF: expected header 'p cnf <vars> <clauses>' before clauses");
   }
+
+  // Check that header was found
+  if (!header_found) {
+    throw std::runtime_error("Invalid CNF: missing header 'p cnf <vars> <clauses>'");
+  }
+
+  // Parse clauses
   FOR(i, n_clauses) {
-    clause cl{in};
+    clause cl{in, number_of_variables};
     addClause(cl);
   }
 }
-clause::clause(std::istream &in) : sat{false} {
+clause::clause(std::istream &in, int num_variables) : sat{false} {
   int ilit;
   while (in >> ilit) {
     if (ilit == 0)
       return;
+
+    // Validate literal is within variable range
+    int var_idx = (ilit < 0) ? -ilit : ilit;
+    if (var_idx > num_variables) {
+      throw std::runtime_error(
+          "Invalid CNF: literal " + std::to_string(ilit) +
+          " exceeds number of variables (" + std::to_string(num_variables) + ")");
+    }
+
+    if (var_idx == 0) {
+      throw std::runtime_error("Invalid CNF: literal cannot be 0 (except as clause terminator)");
+    }
+
+    // Convert to internal representation
     literal lit;
     if (ilit < 0) {
       ilit++;
@@ -493,5 +551,10 @@ clause::clause(std::istream &in) : sat{false} {
       lit = CDCL_solver::VAL(ilit);
     }
     literals.push_back(lit);
+  }
+
+  // If we reach here without finding a 0 terminator, input is incomplete
+  if (in.eof() && !literals.empty()) {
+    throw std::runtime_error("Invalid CNF: clause not terminated with 0");
   }
 }

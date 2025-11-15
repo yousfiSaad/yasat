@@ -1,0 +1,4 @@
+c Invalid CNF - literal exceeds variable count
+p cnf 3 2
+1 2 0
+5 -3 0
