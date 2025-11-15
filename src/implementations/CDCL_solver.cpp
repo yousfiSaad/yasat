@@ -501,10 +501,10 @@ void CDCL_solver::parseCnf(std::istream &in) {
       }
 
       // Initialize data structures
-      values.resize(2 * number_of_variables);
+      values.resize(2 * number_of_variables, 0);
       index.resize(2 * number_of_variables);
-      causes.resize(2 * number_of_variables);
-      levels.resize(2 * number_of_variables);
+      causes.resize(2 * number_of_variables, -1);  // Initialize to -1 (no cause)
+      levels.resize(2 * number_of_variables, 0);
 
       header_found = true;
       break;
