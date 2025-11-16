@@ -508,7 +508,7 @@ void CDCL_solver::parseCnf(std::istream &in) {
       values.assign(2 * number_of_variables, 0);
       index.resize(2 * number_of_variables);
       causes.assign(2 * number_of_variables, -1);
-      levels.assign(number_of_variables, 0);  // Indexed by IDX(lit), not lit
+      levels.assign(2 * number_of_variables, 0);
 
       header_found = true;
       break;
