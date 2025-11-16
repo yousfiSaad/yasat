@@ -504,11 +504,11 @@ void CDCL_solver::parseCnf(std::istream &in) {
         throw std::runtime_error("Invalid CNF: number of clauses cannot be negative");
       }
 
-      // Initialize data structures
-      values.resize(2 * number_of_variables);
+      // Initialize data structures with proper default values
+      values.assign(2 * number_of_variables, 0);
       index.resize(2 * number_of_variables);
-      causes.resize(2 * number_of_variables);
-      levels.resize(2 * number_of_variables);
+      causes.assign(2 * number_of_variables, -1);
+      levels.assign(2 * number_of_variables, 0);
 
       header_found = true;
       break;
