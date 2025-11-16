@@ -8,6 +8,7 @@ WORKDIR /build
 
 # Copy source files
 COPY src/ ./src/
+COPY bindings/ ./bindings/
 COPY Makefile ./
 COPY build.sh ./
 
@@ -70,7 +71,7 @@ RUN cd /usr/local/lib && \
     ldconfig
 
 # Add library path to LD_LIBRARY_PATH
-ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/usr/local/lib
 
 # Verify installation
 RUN yasat --help || true && \
