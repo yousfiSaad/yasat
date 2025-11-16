@@ -1,0 +1,85 @@
+# YASAT Docker Image
+# Multi-stage build for minimal final image size
+
+# Build stage
+FROM gcc:13 AS builder
+
+WORKDIR /build
+
+# Copy source files
+COPY src/ ./src/
+COPY bindings/ ./bindings/
+COPY Makefile ./
+COPY build.sh ./
+
+# Create build directory
+RUN mkdir -p build/objects build/lib_objects
+
+# Build everything: binary, shared library, and static library
+RUN make clean && \
+    make release && \
+    make lib
+
+# Verify builds
+RUN ls -lh build/ && \
+    ldd build/yasat && \
+    file build/yasat && \
+    file build/libyasat.so*
+
+# Runtime stage - minimal image
+FROM debian:bookworm-slim
+
+LABEL maintainer="YOUSFI Saad <yousfi.saad@gmail.com>"
+LABEL description="YASAT - Yet Another SAT Solver with shared library support"
+LABEL version="1.0.0"
+
+# Install runtime dependencies only
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create directories
+RUN mkdir -p /usr/local/bin \
+             /usr/local/lib \
+             /usr/local/include/yasat \
+             /usr/local/include/yasat/c_api \
+             /usr/local/share/yasat/bindings
+
+# Copy binary from builder
+COPY --from=builder /build/build/yasat /usr/local/bin/yasat
+
+# Copy libraries from builder
+COPY --from=builder /build/build/libyasat.so* /usr/local/lib/
+
+# Copy C++ headers from builder
+COPY --from=builder /build/src/headers/*.h /usr/local/include/yasat/
+
+# Copy C API headers from builder
+COPY --from=builder /build/src/c_api/yasat.h /usr/local/include/yasat/c_api/
+COPY --from=builder /build/src/c_api/yasat.cpp /usr/local/include/yasat/c_api/
+
+# Copy language bindings
+COPY --from=builder /build/bindings/ /usr/local/share/yasat/bindings/
+
+# Create symlinks for shared library
+RUN cd /usr/local/lib && \
+    ln -sf libyasat.so.1.0.0 libyasat.so.1 && \
+    ln -sf libyasat.so.1.0.0 libyasat.so && \
+    ldconfig
+
+# Add library path to LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/local/lib
+
+# Verify installation
+RUN yasat --help || true && \
+    ls -lh /usr/local/lib/libyasat* && \
+    ls -lh /usr/local/include/yasat/ && \
+    ls -lh /usr/local/share/yasat/bindings/
+
+# Set working directory for user data
+WORKDIR /data
+
+# Default command shows help
+ENTRYPOINT ["yasat"]
+CMD ["--help"]

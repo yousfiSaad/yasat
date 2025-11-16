@@ -6,6 +6,10 @@ CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -Wpedantic
 LDFLAGS =
 
+# Library version
+VERSION = 1.0.0
+VERSION_MAJOR = 1
+
 # Build modes
 DEBUG_FLAGS = -g -DDEBUG -O0
 RELEASE_FLAGS = -O3 -DNDEBUG
@@ -37,6 +41,34 @@ else
 endif
 
 LIB_TARGET = $(BUILD_DIR)/libyasat.$(LIB_EXT)
+
+# Library targets
+LIB_NAME = yasat
+STATIC_LIB = $(BUILD_DIR)/lib$(LIB_NAME).a
+
+# Platform-specific shared library names
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+    SHARED_LIB = $(BUILD_DIR)/lib$(LIB_NAME).so.$(VERSION)
+    SHARED_LIB_LINK = $(BUILD_DIR)/lib$(LIB_NAME).so
+    SHARED_LIB_SONAME = lib$(LIB_NAME).so.$(VERSION_MAJOR)
+    SHARED_FLAGS = -shared -Wl,-soname,$(SHARED_LIB_SONAME)
+endif
+ifeq ($(UNAME_S),Darwin)
+    SHARED_LIB = $(BUILD_DIR)/lib$(LIB_NAME).$(VERSION).dylib
+    SHARED_LIB_LINK = $(BUILD_DIR)/lib$(LIB_NAME).dylib
+    SHARED_FLAGS = -dynamiclib -install_name @rpath/lib$(LIB_NAME).$(VERSION_MAJOR).dylib
+endif
+ifneq (,$(findstring MINGW,$(UNAME_S)))
+    SHARED_LIB = $(BUILD_DIR)/$(LIB_NAME).dll
+    SHARED_LIB_LINK = $(SHARED_LIB)
+    SHARED_FLAGS = -shared
+endif
+ifneq (,$(findstring MSYS,$(UNAME_S)))
+    SHARED_LIB = $(BUILD_DIR)/$(LIB_NAME).dll
+    SHARED_LIB_LINK = $(SHARED_LIB)
+    SHARED_FLAGS = -shared
+endif
 
 # Default build mode (release)
 MODE ?= release
@@ -139,6 +171,32 @@ test: release
 	@echo "Running test suite..."
 	@./tests/run_tests.sh
 
+# Install libraries and headers
+PREFIX ?= /usr/local
+INSTALL_LIB_DIR = $(PREFIX)/lib
+INSTALL_INCLUDE_DIR = $(PREFIX)/include/yasat
+
+install: lib
+	@echo "Installing YASAT libraries and headers..."
+	install -d $(INSTALL_LIB_DIR)
+	install -d $(INSTALL_INCLUDE_DIR)
+	install -m 644 $(SHARED_LIB) $(INSTALL_LIB_DIR)
+	install -m 644 $(STATIC_LIB) $(INSTALL_LIB_DIR)
+ifneq ($(SHARED_LIB),$(SHARED_LIB_LINK))
+	cd $(INSTALL_LIB_DIR) && ln -sf $(notdir $(SHARED_LIB)) $(notdir $(SHARED_LIB_LINK))
+endif
+	install -m 644 $(INCLUDE_DIR)/*.h $(INSTALL_INCLUDE_DIR)
+	@echo "Installation complete."
+	@echo "Libraries installed to: $(INSTALL_LIB_DIR)"
+	@echo "Headers installed to: $(INSTALL_INCLUDE_DIR)"
+
+# Uninstall
+uninstall:
+	@echo "Uninstalling YASAT..."
+	rm -f $(INSTALL_LIB_DIR)/lib$(LIB_NAME).*
+	rm -rf $(INSTALL_INCLUDE_DIR)
+	@echo "Uninstall complete."
+
 # Help target
 help:
 	@echo "YASAT Build System"
@@ -153,6 +211,8 @@ help:
 	@echo "  uninstall   Remove installed files"
 	@echo "  clean       Remove build artifacts"
 	@echo "  test        Build and run test suite"
+	@echo "  install     Install libraries and headers (requires sudo)"
+	@echo "  uninstall   Uninstall libraries and headers (requires sudo)"
 	@echo "  help        Show this help message"
 	@echo ""
 	@echo "Variables:"
@@ -166,3 +226,4 @@ help:
 	@echo "  make install INSTALL_PREFIX=~/.local  # Install to home"
 	@echo "  make clean        # Clean build artifacts"
 	@echo "  make test         # Run tests"
+	@echo "  sudo make install # Install to /usr/local"

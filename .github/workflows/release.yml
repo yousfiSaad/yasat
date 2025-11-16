@@ -1,0 +1,254 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get version from tag
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the previous tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+        # Generate changelog
+        if [ -n "$PREV_TAG" ]; then
+          echo "## Changes since $PREV_TAG" > CHANGELOG.md
+          git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG.md
+        else
+          echo "## Initial Release" > CHANGELOG.md
+          git log --pretty=format:"- %s (%h)" >> CHANGELOG.md
+        fi
+
+        cat CHANGELOG.md
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: YASAT ${{ steps.get_version.outputs.version }}
+        body_path: CHANGELOG.md
+        draft: false
+        prerelease: false
+
+  build-release-artifacts:
+    name: Build Release (${{ matrix.os }})
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: yasat-linux-x86_64
+            binary_name: yasat
+          - os: macos-latest
+            artifact_name: yasat-macos-x86_64
+            binary_name: yasat
+          - os: windows-latest
+            artifact_name: yasat-windows-x86_64
+            binary_name: yasat.exe
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential g++ make
+
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install make gcc
+
+    - name: Setup MSYS2 (Windows)
+      if: runner.os == 'Windows'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-make
+          make
+          zip
+
+    - name: Build release (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        make clean
+        make release
+        make lib
+
+    - name: Build release (Windows)
+      if: runner.os == 'Windows'
+      shell: msys2 {0}
+      run: |
+        make clean
+        make release
+        make lib
+
+    - name: Create distribution package (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        mkdir -p dist/${{ matrix.artifact_name }}
+
+        # Binary and libraries
+        cp build/yasat dist/${{ matrix.artifact_name }}/
+        cp build/libyasat.so* dist/${{ matrix.artifact_name }}/
+        cp build/libyasat.a dist/${{ matrix.artifact_name }}/
+
+        # Headers
+        cp -r src/headers dist/${{ matrix.artifact_name }}/include
+
+        # C API
+        mkdir -p dist/${{ matrix.artifact_name }}/c_api
+        cp src/c_api/yasat.h dist/${{ matrix.artifact_name }}/c_api/
+        cp src/c_api/yasat.cpp dist/${{ matrix.artifact_name }}/c_api/
+
+        # Language bindings
+        cp -r bindings/python dist/${{ matrix.artifact_name }}/
+        cp -r bindings/go dist/${{ matrix.artifact_name }}/
+
+        # Documentation
+        cp README.md LICENSE dist/${{ matrix.artifact_name }}/ || cp Readme.md license.txt dist/${{ matrix.artifact_name }}/ || true
+
+        # Create archive
+        cd dist && tar czf ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz ${{ matrix.artifact_name }}
+        cd ..
+        sha256sum dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz > dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz.sha256
+
+    - name: Create distribution package (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        mkdir -p dist/${{ matrix.artifact_name }}
+
+        # Binary and libraries
+        cp build/yasat dist/${{ matrix.artifact_name }}/
+        cp build/libyasat*.dylib dist/${{ matrix.artifact_name }}/
+        cp build/libyasat.a dist/${{ matrix.artifact_name }}/
+
+        # Headers
+        cp -r src/headers dist/${{ matrix.artifact_name }}/include
+
+        # C API
+        mkdir -p dist/${{ matrix.artifact_name }}/c_api
+        cp src/c_api/yasat.h dist/${{ matrix.artifact_name }}/c_api/
+        cp src/c_api/yasat.cpp dist/${{ matrix.artifact_name }}/c_api/
+
+        # Language bindings
+        cp -r bindings/python dist/${{ matrix.artifact_name }}/
+        cp -r bindings/go dist/${{ matrix.artifact_name }}/
+
+        # Documentation
+        cp README.md LICENSE dist/${{ matrix.artifact_name }}/ || cp Readme.md license.txt dist/${{ matrix.artifact_name }}/ || true
+
+        # Create archive
+        cd dist && tar czf ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz ${{ matrix.artifact_name }}
+        cd ..
+        shasum -a 256 dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz > dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz.sha256
+
+    - name: Create distribution package (Windows)
+      if: runner.os == 'Windows'
+      shell: msys2 {0}
+      run: |
+        mkdir -p dist/${{ matrix.artifact_name }}
+
+        # Binary and libraries
+        cp build/yasat.exe dist/${{ matrix.artifact_name }}/ || cp build/yasat dist/${{ matrix.artifact_name }}/yasat.exe || true
+        cp build/yasat.dll dist/${{ matrix.artifact_name }}/ || true
+        cp build/libyasat.a dist/${{ matrix.artifact_name }}/ || true
+
+        # Headers
+        cp -r src/headers dist/${{ matrix.artifact_name }}/include
+
+        # C API
+        mkdir -p dist/${{ matrix.artifact_name }}/c_api
+        cp src/c_api/yasat.h dist/${{ matrix.artifact_name }}/c_api/
+        cp src/c_api/yasat.cpp dist/${{ matrix.artifact_name }}/c_api/
+
+        # Language bindings
+        cp -r bindings/python dist/${{ matrix.artifact_name }}/
+        cp -r bindings/go dist/${{ matrix.artifact_name }}/
+
+        # Documentation
+        cp README.md LICENSE dist/${{ matrix.artifact_name }}/ || cp Readme.md license.txt dist/${{ matrix.artifact_name }}/ || true
+
+        # Create archive
+        cd dist && zip -r ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip ${{ matrix.artifact_name }}
+        cd ..
+        sha256sum dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip > dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip.sha256
+
+    - name: Upload Release Asset (Linux/macOS)
+      if: runner.os != 'Windows'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz
+        asset_name: ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload Release Asset SHA256 (Linux/macOS)
+      if: runner.os != 'Windows'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz.sha256
+        asset_name: ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz.sha256
+        asset_content_type: text/plain
+
+    - name: Upload Release Asset (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip
+        asset_name: ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip
+        asset_content_type: application/zip
+
+    - name: Upload Release Asset SHA256 (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip.sha256
+        asset_name: ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip.sha256
+        asset_content_type: text/plain

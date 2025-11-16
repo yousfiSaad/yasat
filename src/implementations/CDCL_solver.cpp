@@ -75,7 +75,7 @@ literal CDCL_solver::propagate_(literal nlitetal, int level, idx cause) {
       if (cl.sat)
         continue; // no conclusions
       size_t number_of_literals_removed = 0;
-      literal remainingLiteral;
+      literal remainingLiteral = -1;  // Initialize to avoid undefined behavior
       for (const literal &literal_in_clause : cl.literals) {
         if (isLiteralFalse(literal_in_clause))
           number_of_literals_removed++;
@@ -84,7 +84,8 @@ literal CDCL_solver::propagate_(literal nlitetal, int level, idx cause) {
       }
       if (number_of_literals_removed == cl.literals.size()) {
         // All literals are false - conflict detected
-        return cl.literals[0];
+        // Return first literal if exists, otherwise return current_literal as conflict marker
+        return cl.literals.empty() ? current_literal : cl.literals[0];
       }
       if (number_of_literals_removed == cl.literals.size() - 1) {
         if (isLiteralEmpty(remainingLiteral))
@@ -335,11 +336,20 @@ analysisResult CDCL_solver::analyze(literal conflictingLiteral) {
     literal nLit = NOT(lit);
     res.newClause.literals.push_back(nLit);
   }
-  std::set<int>::reverse_iterator rIt = ss.rbegin();
-  std::set<int>::reverse_iterator rIt2 = ss.rbegin();
-  rIt++;
-  res.targetLevel = *rIt;
-  res.maxLevel = *rIt2;
+
+  // Handle edge case: prevent iterator dereference beyond end
+  // When ss has fewer than 2 levels, set targetLevel = maxLevel
+  // This makes maxLevel > targetLevel false, triggering normal backTrack()
+  if (ss.size() < 2) {
+    res.maxLevel = ss.empty() ? 0 : *ss.rbegin();
+    res.targetLevel = res.maxLevel;  // Same as maxLevel - triggers backTrack()
+  } else {
+    std::set<int>::reverse_iterator rIt = ss.rbegin();
+    std::set<int>::reverse_iterator rIt2 = ss.rbegin();
+    rIt++;
+    res.targetLevel = *rIt;   // Second-highest level
+    res.maxLevel = *rIt2;     // Highest level
+  }
   return res;
 }
 size_t CDCL_solver::cnfSize() { return cnf.size(); }
@@ -504,11 +514,11 @@ void CDCL_solver::parseCnf(std::istream &in) {
         throw std::runtime_error("Invalid CNF: number of clauses cannot be negative");
       }
 
-      // Initialize data structures
-      values.resize(2 * number_of_variables);
+      // Initialize data structures with proper default values
+      values.assign(2 * number_of_variables, 0);
       index.resize(2 * number_of_variables);
-      causes.resize(2 * number_of_variables);
-      levels.resize(2 * number_of_variables);
+      causes.assign(2 * number_of_variables, -1);
+      levels.assign(2 * number_of_variables, 0);
 
       header_found = true;
       break;
