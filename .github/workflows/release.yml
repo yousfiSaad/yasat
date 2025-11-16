@@ -70,26 +70,59 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Linux x86_64
           - os: ubuntu-latest
             platform: linux-x86_64
             archive: tar.gz
-          - os: macos-latest
+            arch: x86_64
+
+          # Linux ARM64 (aarch64)
+          - os: ubuntu-latest
+            platform: linux-aarch64
+            archive: tar.gz
+            arch: aarch64
+
+          # macOS x86_64 (Intel)
+          - os: macos-13
             platform: macos-x86_64
             archive: tar.gz
+            arch: x86_64
+
+          # macOS ARM64 (Apple Silicon)
+          - os: macos-14
+            platform: macos-arm64
+            archive: tar.gz
+            arch: arm64
+
+          # Windows x86_64
           - os: windows-latest
             platform: windows-x86_64
             archive: zip
+            arch: x86_64
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # Setup QEMU for ARM64 cross-compilation on Linux
+    - name: Set up QEMU
+      if: runner.os == 'Linux' && matrix.arch == 'aarch64'
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: linux/arm64
+
     # Install dependencies
-    - name: Install dependencies (Ubuntu)
-      if: runner.os == 'Linux'
+    - name: Install dependencies (Ubuntu x86_64)
+      if: runner.os == 'Linux' && matrix.arch == 'x86_64'
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential g++ make
+
+    - name: Install dependencies (Ubuntu ARM64)
+      if: runner.os == 'Linux' && matrix.arch == 'aarch64'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu make
 
     - name: Install dependencies (macOS)
       if: runner.os == 'macOS'
@@ -109,8 +142,26 @@ jobs:
           zip
 
     # Build
-    - name: Build (Linux/macOS)
-      if: runner.os != 'Windows'
+    - name: Build (Linux x86_64)
+      if: runner.os == 'Linux' && matrix.arch == 'x86_64'
+      run: |
+        make clean
+        make release
+        make lib
+        ls -lh build/
+
+    - name: Build (Linux ARM64)
+      if: runner.os == 'Linux' && matrix.arch == 'aarch64'
+      run: |
+        make clean
+        CXX=aarch64-linux-gnu-g++ make release
+        CXX=aarch64-linux-gnu-g++ make lib
+        ls -lh build/
+        file build/yasat
+        file build/libyasat.so* || true
+
+    - name: Build (macOS)
+      if: runner.os == 'macOS'
       run: |
         make clean
         make release
