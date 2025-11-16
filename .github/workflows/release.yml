@@ -9,12 +9,12 @@ permissions:
   contents: write
 
 jobs:
-  create-release:
-    name: Create Release
+  create-changelog:
+    name: Generate Changelog
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      version: ${{ steps.get_version.outputs.version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      version: ${{ steps.version.outputs.version }}
 
     steps:
     - name: Checkout code
@@ -22,8 +22,8 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Get version from tag
-      id: get_version
+    - name: Extract version from tag
+      id: version
       run: |
         VERSION=${GITHUB_REF#refs/tags/v}
         echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -32,54 +32,59 @@ jobs:
     - name: Generate changelog
       id: changelog
       run: |
-        # Get the previous tag
         PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
-        # Generate changelog
         if [ -n "$PREV_TAG" ]; then
-          echo "## Changes since $PREV_TAG" > CHANGELOG.md
-          git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG.md
+          echo "## 🚀 Changes since $PREV_TAG" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --reverse >> CHANGELOG.md
         else
-          echo "## Initial Release" > CHANGELOG.md
-          git log --pretty=format:"- %s (%h)" >> CHANGELOG.md
+          echo "## 🎉 Initial Release" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "First official release of YASAT - Yet Another SAT Solver" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "### Features" >> CHANGELOG.md
+          git log --pretty=format:"- %s (%h)" --reverse >> CHANGELOG.md
         fi
+
+        echo "" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "---" >> CHANGELOG.md
+        echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...v${{ steps.version.outputs.version }}" >> CHANGELOG.md
 
         cat CHANGELOG.md
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: YASAT ${{ steps.get_version.outputs.version }}
-        body_path: CHANGELOG.md
-        draft: false
-        prerelease: false
+        # Save for later use
+        {
+          echo 'changelog<<EOF'
+          cat CHANGELOG.md
+          echo EOF
+        } >> $GITHUB_OUTPUT
 
-  build-release-artifacts:
-    name: Build Release (${{ matrix.os }})
-    needs: create-release
+  build-artifacts:
+    name: Build (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
+    needs: create-changelog
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            artifact_name: yasat-linux-x86_64
-            binary_name: yasat
+            platform: linux-x86_64
+            archive: tar.gz
           - os: macos-latest
-            artifact_name: yasat-macos-x86_64
-            binary_name: yasat
+            platform: macos-x86_64
+            archive: tar.gz
           - os: windows-latest
-            artifact_name: yasat-windows-x86_64
-            binary_name: yasat.exe
+            platform: windows-x86_64
+            archive: zip
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # Install dependencies
     - name: Install dependencies (Ubuntu)
       if: runner.os == 'Linux'
       run: |
@@ -103,152 +108,185 @@ jobs:
           make
           zip
 
-    - name: Build release (Linux/macOS)
+    # Build
+    - name: Build (Linux/macOS)
       if: runner.os != 'Windows'
       run: |
         make clean
         make release
         make lib
+        ls -lh build/
 
-    - name: Build release (Windows)
+    - name: Build (Windows)
       if: runner.os == 'Windows'
       shell: msys2 {0}
       run: |
         make clean
         make release
         make lib
+        ls -lh build/
 
-    - name: Create distribution package (Linux)
+    # Create distribution package
+    - name: Create package (Linux)
       if: runner.os == 'Linux'
       run: |
-        mkdir -p dist/${{ matrix.artifact_name }}
+        DIST_DIR="yasat-${{ matrix.platform }}"
+        mkdir -p dist/$DIST_DIR
 
         # Binary and libraries
-        cp build/yasat dist/${{ matrix.artifact_name }}/
-        cp build/libyasat.so* dist/${{ matrix.artifact_name }}/
-        cp build/libyasat.a dist/${{ matrix.artifact_name }}/
+        cp build/yasat dist/$DIST_DIR/
+        cp build/libyasat.so* dist/$DIST_DIR/ || true
+        cp build/libyasat.a dist/$DIST_DIR/ || true
 
         # Headers
-        cp -r src/headers dist/${{ matrix.artifact_name }}/include
+        mkdir -p dist/$DIST_DIR/include
+        cp -r src/headers/* dist/$DIST_DIR/include/
 
         # C API
-        mkdir -p dist/${{ matrix.artifact_name }}/c_api
-        cp src/c_api/yasat.h dist/${{ matrix.artifact_name }}/c_api/
-        cp src/c_api/yasat.cpp dist/${{ matrix.artifact_name }}/c_api/
+        mkdir -p dist/$DIST_DIR/c_api
+        cp src/c_api/yasat.h dist/$DIST_DIR/c_api/
+        cp src/c_api/yasat.cpp dist/$DIST_DIR/c_api/
 
         # Language bindings
-        cp -r bindings/python dist/${{ matrix.artifact_name }}/
-        cp -r bindings/go dist/${{ matrix.artifact_name }}/
+        cp -r bindings dist/$DIST_DIR/
 
         # Documentation
-        cp README.md LICENSE dist/${{ matrix.artifact_name }}/ || cp Readme.md license.txt dist/${{ matrix.artifact_name }}/ || true
+        cp Readme.md dist/$DIST_DIR/ || cp README.md dist/$DIST_DIR/ || true
+        cp license.txt dist/$DIST_DIR/ || cp LICENSE dist/$DIST_DIR/ || true
 
         # Create archive
-        cd dist && tar czf ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz ${{ matrix.artifact_name }}
-        cd ..
-        sha256sum dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz > dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz.sha256
+        cd dist
+        tar czf $DIST_DIR-${{ needs.create-changelog.outputs.version }}.tar.gz $DIST_DIR
+        sha256sum $DIST_DIR-${{ needs.create-changelog.outputs.version }}.tar.gz > $DIST_DIR-${{ needs.create-changelog.outputs.version }}.tar.gz.sha256
+        ls -lh
 
-    - name: Create distribution package (macOS)
+    - name: Create package (macOS)
       if: runner.os == 'macOS'
       run: |
-        mkdir -p dist/${{ matrix.artifact_name }}
+        DIST_DIR="yasat-${{ matrix.platform }}"
+        mkdir -p dist/$DIST_DIR
 
         # Binary and libraries
-        cp build/yasat dist/${{ matrix.artifact_name }}/
-        cp build/libyasat*.dylib dist/${{ matrix.artifact_name }}/
-        cp build/libyasat.a dist/${{ matrix.artifact_name }}/
+        cp build/yasat dist/$DIST_DIR/
+        cp build/libyasat*.dylib dist/$DIST_DIR/ || true
+        cp build/libyasat.a dist/$DIST_DIR/ || true
 
         # Headers
-        cp -r src/headers dist/${{ matrix.artifact_name }}/include
+        mkdir -p dist/$DIST_DIR/include
+        cp -r src/headers/* dist/$DIST_DIR/include/
 
         # C API
-        mkdir -p dist/${{ matrix.artifact_name }}/c_api
-        cp src/c_api/yasat.h dist/${{ matrix.artifact_name }}/c_api/
-        cp src/c_api/yasat.cpp dist/${{ matrix.artifact_name }}/c_api/
+        mkdir -p dist/$DIST_DIR/c_api
+        cp src/c_api/yasat.h dist/$DIST_DIR/c_api/
+        cp src/c_api/yasat.cpp dist/$DIST_DIR/c_api/
 
         # Language bindings
-        cp -r bindings/python dist/${{ matrix.artifact_name }}/
-        cp -r bindings/go dist/${{ matrix.artifact_name }}/
+        cp -r bindings dist/$DIST_DIR/
 
         # Documentation
-        cp README.md LICENSE dist/${{ matrix.artifact_name }}/ || cp Readme.md license.txt dist/${{ matrix.artifact_name }}/ || true
+        cp Readme.md dist/$DIST_DIR/ || cp README.md dist/$DIST_DIR/ || true
+        cp license.txt dist/$DIST_DIR/ || cp LICENSE dist/$DIST_DIR/ || true
 
         # Create archive
-        cd dist && tar czf ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz ${{ matrix.artifact_name }}
-        cd ..
-        shasum -a 256 dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz > dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz.sha256
+        cd dist
+        tar czf $DIST_DIR-${{ needs.create-changelog.outputs.version }}.tar.gz $DIST_DIR
+        shasum -a 256 $DIST_DIR-${{ needs.create-changelog.outputs.version }}.tar.gz > $DIST_DIR-${{ needs.create-changelog.outputs.version }}.tar.gz.sha256
+        ls -lh
 
-    - name: Create distribution package (Windows)
+    - name: Create package (Windows)
       if: runner.os == 'Windows'
       shell: msys2 {0}
       run: |
-        mkdir -p dist/${{ matrix.artifact_name }}
+        DIST_DIR="yasat-${{ matrix.platform }}"
+        mkdir -p dist/$DIST_DIR
 
         # Binary and libraries
-        cp build/yasat.exe dist/${{ matrix.artifact_name }}/ || cp build/yasat dist/${{ matrix.artifact_name }}/yasat.exe || true
-        cp build/yasat.dll dist/${{ matrix.artifact_name }}/ || true
-        cp build/libyasat.a dist/${{ matrix.artifact_name }}/ || true
+        cp build/yasat.exe dist/$DIST_DIR/ || cp build/yasat dist/$DIST_DIR/yasat.exe || true
+        cp build/yasat.dll dist/$DIST_DIR/ || cp build/libyasat.dll dist/$DIST_DIR/ || true
+        cp build/libyasat.a dist/$DIST_DIR/ || true
 
         # Headers
-        cp -r src/headers dist/${{ matrix.artifact_name }}/include
+        mkdir -p dist/$DIST_DIR/include
+        cp -r src/headers/* dist/$DIST_DIR/include/
 
         # C API
-        mkdir -p dist/${{ matrix.artifact_name }}/c_api
-        cp src/c_api/yasat.h dist/${{ matrix.artifact_name }}/c_api/
-        cp src/c_api/yasat.cpp dist/${{ matrix.artifact_name }}/c_api/
+        mkdir -p dist/$DIST_DIR/c_api
+        cp src/c_api/yasat.h dist/$DIST_DIR/c_api/
+        cp src/c_api/yasat.cpp dist/$DIST_DIR/c_api/
 
         # Language bindings
-        cp -r bindings/python dist/${{ matrix.artifact_name }}/
-        cp -r bindings/go dist/${{ matrix.artifact_name }}/
+        cp -r bindings dist/$DIST_DIR/
 
         # Documentation
-        cp README.md LICENSE dist/${{ matrix.artifact_name }}/ || cp Readme.md license.txt dist/${{ matrix.artifact_name }}/ || true
+        cp Readme.md dist/$DIST_DIR/ || cp README.md dist/$DIST_DIR/ || true
+        cp license.txt dist/$DIST_DIR/ || cp LICENSE dist/$DIST_DIR/ || true
 
         # Create archive
-        cd dist && zip -r ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip ${{ matrix.artifact_name }}
-        cd ..
-        sha256sum dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip > dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip.sha256
+        cd dist
+        zip -r $DIST_DIR-${{ needs.create-changelog.outputs.version }}.zip $DIST_DIR
+        sha256sum $DIST_DIR-${{ needs.create-changelog.outputs.version }}.zip > $DIST_DIR-${{ needs.create-changelog.outputs.version }}.zip.sha256
+        ls -lh
 
-    - name: Upload Release Asset (Linux/macOS)
-      if: runner.os != 'Windows'
-      uses: actions/upload-release-asset@v1
+    # Upload artifacts
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: yasat-${{ matrix.platform }}
+        path: |
+          dist/yasat-${{ matrix.platform }}-${{ needs.create-changelog.outputs.version }}.${{ matrix.archive }}
+          dist/yasat-${{ matrix.platform }}-${{ needs.create-changelog.outputs.version }}.${{ matrix.archive }}.sha256
+        retention-days: 7
+
+  create-release:
+    name: Create GitHub Release
+    needs: [create-changelog, build-artifacts]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Display structure
+      run: |
+        ls -R artifacts/
+
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        find artifacts -type f -name "*.tar.gz" -exec cp {} release-assets/ \;
+        find artifacts -type f -name "*.zip" -exec cp {} release-assets/ \;
+        find artifacts -type f -name "*.sha256" -exec cp {} release-assets/ \;
+        ls -lh release-assets/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: YASAT v${{ needs.create-changelog.outputs.version }}
+        body: ${{ needs.create-changelog.outputs.changelog }}
+        draft: false
+        prerelease: false
+        files: release-assets/*
+        fail_on_unmatched_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz
-        asset_name: ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz
-        asset_content_type: application/gzip
 
-    - name: Upload Release Asset SHA256 (Linux/macOS)
-      if: runner.os != 'Windows'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz.sha256
-        asset_name: ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.tar.gz.sha256
-        asset_content_type: text/plain
-
-    - name: Upload Release Asset (Windows)
-      if: runner.os == 'Windows'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip
-        asset_name: ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip
-        asset_content_type: application/zip
-
-    - name: Upload Release Asset SHA256 (Windows)
-      if: runner.os == 'Windows'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip.sha256
-        asset_name: ${{ matrix.artifact_name }}-${{ needs.create-release.outputs.version }}.zip.sha256
-        asset_content_type: text/plain
+    - name: Release summary
+      run: |
+        echo "## 🎉 Release v${{ needs.create-changelog.outputs.version }} Published!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Release Assets" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Platform | Archive | Checksum |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|---------|----------|" >> $GITHUB_STEP_SUMMARY
+        for file in release-assets/*.tar.gz release-assets/*.zip; do
+          if [ -f "$file" ]; then
+            filename=$(basename "$file")
+            platform=$(echo "$filename" | sed 's/yasat-\(.*\)-[0-9].*/\1/')
+            checksum=$(cat "$file.sha256" 2>/dev/null | awk '{print $1}' | cut -c1-12)
+            echo "| $platform | $filename | \`${checksum}...\` |" >> $GITHUB_STEP_SUMMARY
+          fi
+        done
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🔗 [View Release](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.create-changelog.outputs.version }})" >> $GITHUB_STEP_SUMMARY
