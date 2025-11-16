@@ -3,6 +3,10 @@
 # YASAT Test Suite
 # Tests the SAT solver against known test cases
 #
+# Usage:
+#   ./tests/run_tests.sh           # Normal mode
+#   VERBOSE=1 ./tests/run_tests.sh # Verbose mode (shows CNF content and solver output)
+#
 # Note: The solver currently has a limitation with direct unit clause
 # contradictions at initialization. Test cases are chosen to work with
 # the current implementation.
@@ -28,6 +32,9 @@ fi
 
 echo "================================"
 echo "  YASAT Test Suite"
+if [ "${VERBOSE:-0}" = "1" ]; then
+    echo "  (Verbose Mode)"
+fi
 echo "================================"
 echo ""
 
@@ -46,8 +53,42 @@ run_test() {
         return
     fi
 
-    # Run solver and capture output
+    # Verbose mode: show CNF file being tested
+    if [ "${VERBOSE:-0}" = "1" ]; then
+        echo ""
+        echo "  File: $cnf_file"
+        echo "  Expected: $expected"
+        echo "  CNF content:"
+        cat "$cnf_file" | head -20
+        echo "  Running solver..."
+    fi
+
+    # Run solver and capture output and exit code
+    set +e  # Don't exit on error
     result=$(cat "$cnf_file" | $SOLVER 2>&1)
+    exit_code=$?
+    set -e
+
+    # Verbose mode: show raw output and exit code
+    if [ "${VERBOSE:-0}" = "1" ]; then
+        echo "  Exit code: $exit_code"
+        echo "  Solver output: $result"
+    fi
+
+    # Check exit code for crashes
+    if [ $exit_code -eq 139 ]; then
+        echo -e "${RED}FAIL${NC} (segmentation fault - exit code 139)"
+        echo "  File: $cnf_file"
+        echo "  CNF content:"
+        cat "$cnf_file"
+        FAILED=$((FAILED + 1))
+        return
+    elif [ $exit_code -ne 0 ] && [ $exit_code -ne 1 ]; then
+        echo -e "${RED}FAIL${NC} (unexpected exit code: $exit_code)"
+        echo "  Output: $result"
+        FAILED=$((FAILED + 1))
+        return
+    fi
 
     # Check if result matches expected
     if echo "$result" | grep -q "^$expected"; then
