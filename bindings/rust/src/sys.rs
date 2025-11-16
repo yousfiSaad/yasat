@@ -14,6 +14,7 @@ pub struct yasat_solver {
 /// Result codes returned by yasat_solve()
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
 pub enum yasat_result {
     /// Formula is satisfiable
     YASAT_RESULT_SAT = 10,
@@ -28,6 +29,7 @@ pub enum yasat_result {
 /// Error codes for detailed error information
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
 pub enum yasat_error {
     /// No error
     YASAT_OK = 0,
