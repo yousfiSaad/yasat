@@ -1,0 +1,37 @@
+[package]
+name = "yasat"
+version = "1.0.0"
+authors = ["YOUSFI Saad <yousfi.saad@gmail.com>"]
+edition = "2021"
+rust-version = "1.70"
+description = "Rust bindings for YASAT - Yet Another SAT Solver"
+license = "Proprietary"
+repository = "https://github.com/yousfiSaad/yasat"
+keywords = ["sat", "solver", "cdcl", "boolean", "satisfiability"]
+categories = ["algorithms", "science"]
+
+[lib]
+name = "yasat"
+path = "src/lib.rs"
+
+[dependencies]
+libc = "0.2"
+thiserror = "1.0"
+
+[dev-dependencies]
+tempfile = "3.8"
+
+[build-dependencies]
+pkg-config = "0.3"
+
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
+
+[[example]]
+name = "file"
+path = "examples/file.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

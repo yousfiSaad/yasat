@@ -75,6 +75,25 @@ jobs:
         cd bindings/go/yasat
         LD_LIBRARY_PATH=../../../build go test -v
 
+    - name: Setup Rust (Linux only, release)
+      if: matrix.mode == 'release' && runner.os == 'Linux'
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Run Rust binding tests (Linux only, release)
+      if: matrix.mode == 'release' && runner.os == 'Linux'
+      run: |
+        cd bindings/rust
+        LD_LIBRARY_PATH=../../build cargo test --verbose
+
+    - name: Run Rust examples (Linux only, release)
+      if: matrix.mode == 'release' && runner.os == 'Linux'
+      run: |
+        cd bindings/rust
+        LD_LIBRARY_PATH=../../build cargo run --example simple
+        LD_LIBRARY_PATH=../../build cargo run --example file ../../tests/cnf/simple_sat.cnf
+
     - name: Display test summary (Linux only, release)
       if: matrix.mode == 'release' && runner.os == 'Linux'
       run: |
@@ -85,7 +104,8 @@ jobs:
         echo "- C API tests: 24 tests"
         echo "- Python tests: 25 tests"
         echo "- Go tests: 17 tests"
-        echo "- Total: 82 tests"
+        echo "- Rust tests: 7 tests"
+        echo "- Total: 89 tests"
 
     - name: List build artifacts
       if: matrix.mode == 'release'
@@ -152,6 +172,14 @@ jobs:
       with:
         name: yasat-go-bindings
         path: bindings/go/
+        retention-days: 7
+
+    - name: Upload Rust bindings (Linux only, release)
+      if: matrix.mode == 'release' && runner.os == 'Linux'
+      uses: actions/upload-artifact@v4
+      with:
+        name: yasat-rust-bindings
+        path: bindings/rust/
         retention-days: 7
 
     - name: Display build info

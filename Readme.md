@@ -9,8 +9,8 @@ A fast, lightweight SAT solver implementing the Conflict-Driven Clause Learning 
 ## Features
 
 - **CDCL Algorithm**: State-of-the-art conflict-driven clause learning
-- **Shared Library**: Use YASAT from C, Go, Python, and other languages
-- **Language Bindings**: Idiomatic bindings for Go and Python included
+- **Shared Library**: Use YASAT from C, Go, Python, Rust, and other languages
+- **Language Bindings**: Idiomatic bindings for Rust, Go, and Python included
 - **Zero Dependencies**: Core uses only the C++ standard library
 - **Modern C++**: Built with C++17 standards
 - **Robust Input Validation**: Comprehensive error checking for malformed CNF files
@@ -347,6 +347,56 @@ python examples/simple.py
 
 **Documentation:** See [`bindings/python/README.md`](bindings/python/README.md)
 
+### Rust Bindings
+
+Safe, idiomatic Rust interface using zero-cost FFI abstractions.
+
+**Example:**
+
+```rust
+use yasat::{Solver, SatResult};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create solver
+    let mut solver = Solver::new()?;
+
+    // Add clauses
+    solver.add_clause(&[1, 2])?;
+    solver.add_clause(&[-1, 3])?;
+
+    // Solve
+    match solver.solve()? {
+        SatResult::Sat => {
+            println!("SAT");
+            let assignments = solver.get_assignments()?;
+            for (i, &val) in assignments.iter().enumerate() {
+                println!("x{} = {}", i + 1, val);
+            }
+        }
+        SatResult::Unsat => println!("UNSAT"),
+    }
+
+    Ok(())
+}
+```
+
+**Setup:**
+
+```bash
+# Build library
+make lib
+
+# Add to Cargo.toml
+cd your_project
+cargo add yasat --path=path/to/yasat/bindings/rust
+
+# Run
+export LD_LIBRARY_PATH=path/to/yasat/build:$LD_LIBRARY_PATH
+cargo run
+```
+
+**Documentation:** See [`bindings/rust/README.md`](bindings/rust/README.md)
+
 ### Loading from Files
 
 All APIs support loading CNF files:
@@ -366,6 +416,13 @@ solver, _ := yasat.NewSolverFromFile("problem.cnf")
 solver.parse_cnf_file("problem.cnf")
 # Or use convenience function
 result, assignments = solve_file("problem.cnf")
+```
+
+**Rust:**
+```rust
+let mut solver = Solver::from_file("problem.cnf")?;
+// Or load into existing solver
+solver.load_cnf_file("problem.cnf")?;
 ```
 
 ### Installation
@@ -493,7 +550,8 @@ GitHub Actions automatically tests everything on every push:
 - **C API tests**: 24 tests covering all C functions
 - **Python tests**: 25 tests for Python bindings
 - **Go tests**: 17 tests for Go bindings
-- **Total**: 82 automated tests on every commit
+- **Rust tests**: 7 tests for Rust bindings
+- **Total**: 89 automated tests on every commit
 
 This ensures all language bindings remain stable and functional across changes.
 
@@ -516,10 +574,14 @@ yasat/
 │   │   ├── yasat/                  # Go package
 │   │   ├── examples/               # Go examples
 │   │   └── README.md               # Go documentation
-│   └── python/
-│       ├── yasat/                  # Python package
-│       ├── examples/               # Python examples
-│       └── README.md               # Python documentation
+│   ├── python/
+│   │   ├── yasat/                  # Python package
+│   │   ├── examples/               # Python examples
+│   │   └── README.md               # Python documentation
+│   └── rust/
+│       ├── src/                    # Rust source
+│       ├── examples/               # Rust examples
+│       └── README.md               # Rust documentation
 ├── tests/
 │   ├── run_tests.sh                # Test runner script
 │   ├── test_c_api.c                # C API tests
