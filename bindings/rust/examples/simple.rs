@@ -59,7 +59,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("\nYASAT version: {}", Solver::version()?);
-
     Ok(())
 }

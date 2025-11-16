@@ -33,18 +33,16 @@ pub enum yasat_result {
 pub enum yasat_error {
     /// No error
     YASAT_OK = 0,
-    /// Invalid argument provided
-    YASAT_ERROR_INVALID_ARG = -1,
-    /// Out of memory
-    YASAT_ERROR_OUT_OF_MEMORY = -2,
-    /// Parse error in CNF file
+    /// Memory allocation failed
+    YASAT_ERROR_MEMORY = -1,
+    /// Invalid input parameters
+    YASAT_ERROR_INVALID_INPUT = -2,
+    /// CNF parsing error
     YASAT_ERROR_PARSE = -3,
-    /// I/O error
-    YASAT_ERROR_IO = -4,
-    /// Solver not initialized
-    YASAT_ERROR_NOT_INITIALIZED = -5,
-    /// Solver already solved
-    YASAT_ERROR_ALREADY_SOLVED = -6,
+    /// File I/O error
+    YASAT_ERROR_FILE = -4,
+    /// Invalid solver state
+    YASAT_ERROR_STATE = -5,
 }
 
 #[link(name = "yasat")]
@@ -112,10 +110,4 @@ extern "C" {
 
     /// Reset the solver to initial state
     pub fn yasat_reset(solver: *mut yasat_solver);
-
-    /// Get version string
-    pub fn yasat_version() -> *const c_char;
-
-    /// Get the last error code
-    pub fn yasat_get_last_error(solver: *const yasat_solver) -> yasat_error;
 }

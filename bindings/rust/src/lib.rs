@@ -352,25 +352,18 @@ impl Solver {
         unsafe { sys::yasat_reset(self.inner.as_ptr()) }
     }
 
-    /// Get the YASAT library version
-    pub fn version() -> Result<String, Error> {
-        let c_str = unsafe { CStr::from_ptr(sys::yasat_version()) };
-        Ok(c_str.to_str()?.to_string())
-    }
-
     fn check_error(error: sys::yasat_error) -> Result<(), Error> {
         match error {
             sys::yasat_error::YASAT_OK => Ok(()),
-            sys::yasat_error::YASAT_ERROR_INVALID_ARG => {
+            sys::yasat_error::YASAT_ERROR_INVALID_INPUT => {
                 Err(Error::InvalidArgument("Invalid argument".to_string()))
             }
-            sys::yasat_error::YASAT_ERROR_OUT_OF_MEMORY => Err(Error::OutOfMemory),
+            sys::yasat_error::YASAT_ERROR_MEMORY => Err(Error::OutOfMemory),
             sys::yasat_error::YASAT_ERROR_PARSE => {
                 Err(Error::ParseError("Parse error".to_string()))
             }
-            sys::yasat_error::YASAT_ERROR_IO => Err(Error::IoError("I/O error".to_string())),
-            sys::yasat_error::YASAT_ERROR_NOT_INITIALIZED => Err(Error::NotInitialized),
-            sys::yasat_error::YASAT_ERROR_ALREADY_SOLVED => Err(Error::AlreadySolved),
+            sys::yasat_error::YASAT_ERROR_FILE => Err(Error::IoError("I/O error".to_string())),
+            sys::yasat_error::YASAT_ERROR_STATE => Err(Error::NotInitialized),
         }
     }
 }
@@ -444,11 +437,5 @@ mod tests {
 
         assert_eq!(solver.num_variables(), 4);
         assert_eq!(solver.num_clauses(), 2);
-    }
-
-    #[test]
-    fn test_version() {
-        let version = Solver::version().unwrap();
-        assert!(!version.is_empty());
     }
 }
