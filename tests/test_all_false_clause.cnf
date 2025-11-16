@@ -1,0 +1,6 @@
+c Test the exact bug we fixed: all literals in a clause become false
+c x1 true, x2 true, then clause (-x1 -x2) becomes all false
+p cnf 2 3
+1 0
+2 0
+-1 -2 0

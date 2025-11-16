@@ -82,6 +82,10 @@ literal CDCL_solver::propagate_(literal nlitetal, int level, idx cause) {
         else // et remaining with xor
           remainingLiteral = literal_in_clause;
       }
+      if (number_of_literals_removed == cl.literals.size()) {
+        // All literals are false - conflict detected
+        return cl.literals[0];
+      }
       if (number_of_literals_removed == cl.literals.size() - 1) {
         if (isLiteralEmpty(remainingLiteral))
           causes[remainingLiteral] = clIdx;

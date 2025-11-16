@@ -1,0 +1,32 @@
+c Pigeonhole: 4 pigeons, 3 holes - should be UNSAT
+c Generated manually
+p cnf 12 22
+c Pigeon 1 must go in some hole
+1 2 3 0
+c Pigeon 2 must go in some hole
+4 5 6 0
+c Pigeon 3 must go in some hole
+7 8 9 0
+c Pigeon 4 must go in some hole
+10 11 12 0
+c At most one pigeon per hole - hole 1
+-1 -4 0
+-1 -7 0
+-1 -10 0
+-4 -7 0
+-4 -10 0
+-7 -10 0
+c At most one pigeon per hole - hole 2
+-2 -5 0
+-2 -8 0
+-2 -11 0
+-5 -8 0
+-5 -11 0
+-8 -11 0
+c At most one pigeon per hole - hole 3
+-3 -6 0
+-3 -9 0
+-3 -12 0
+-6 -9 0
+-6 -12 0
+-9 -12 0
