@@ -1,0 +1,3 @@
+c Simple SAT formula: x1 OR x2
+p cnf 2 1
+1 2 0

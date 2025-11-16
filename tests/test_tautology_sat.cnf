@@ -1,0 +1,5 @@
+c Every clause has both a variable and its negation (tautologies)
+c Should be SAT (all clauses trivially satisfied)
+p cnf 2 2
+1 -1 0
+2 -2 0

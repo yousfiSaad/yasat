@@ -1,0 +1,7 @@
+c Unit propagation leads to conflict
+c x1 must be true, then x2 must be false, then we need both x3 and -x3
+p cnf 3 4
+1 0
+-1 -2 0
+2 3 0
+2 -3 0
