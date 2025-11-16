@@ -1,0 +1,11 @@
+c 3-SAT instance that is unsatisfiable
+c All 8 possible assignments are blocked
+p cnf 3 8
+1 2 3 0
+1 2 -3 0
+1 -2 3 0
+1 -2 -3 0
+-1 2 3 0
+-1 2 -3 0
+-1 -2 3 0
+-1 -2 -3 0

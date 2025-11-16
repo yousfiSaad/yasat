@@ -1,0 +1,4 @@
+c Single negative unit clause followed by positive - contradiction
+p cnf 1 2
+-1 0
+1 0

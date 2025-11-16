@@ -1,0 +1,5 @@
+c A simple UNSAT formula
+c Variable 1 must be both true and false
+p cnf 1 2
+1 0
+-1 0
