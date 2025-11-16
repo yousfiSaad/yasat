@@ -75,7 +75,7 @@ literal CDCL_solver::propagate_(literal nlitetal, int level, idx cause) {
       if (cl.sat)
         continue; // no conclusions
       size_t number_of_literals_removed = 0;
-      literal remainingLiteral;
+      literal remainingLiteral = -1;  // Initialize to avoid undefined behavior
       for (const literal &literal_in_clause : cl.literals) {
         if (isLiteralFalse(literal_in_clause))
           number_of_literals_removed++;
@@ -508,7 +508,7 @@ void CDCL_solver::parseCnf(std::istream &in) {
       values.assign(2 * number_of_variables, 0);
       index.resize(2 * number_of_variables);
       causes.assign(2 * number_of_variables, -1);
-      levels.assign(2 * number_of_variables, 0);
+      levels.assign(number_of_variables, 0);  // Indexed by IDX(lit), not lit
 
       header_found = true;
       break;
