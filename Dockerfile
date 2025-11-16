@@ -24,8 +24,7 @@ RUN make clean && \
 RUN ls -lh build/ && \
     ldd build/yasat && \
     file build/yasat && \
-    file build/libyasat.so* && \
-    file build/libyasat.a
+    file build/libyasat.so*
 
 # Runtime stage - minimal image
 FROM debian:bookworm-slim
@@ -52,7 +51,6 @@ COPY --from=builder /build/build/yasat /usr/local/bin/yasat
 
 # Copy libraries from builder
 COPY --from=builder /build/build/libyasat.so* /usr/local/lib/
-COPY --from=builder /build/build/libyasat.a /usr/local/lib/
 
 # Copy C++ headers from builder
 COPY --from=builder /build/src/headers/*.h /usr/local/include/yasat/
