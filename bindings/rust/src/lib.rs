@@ -39,7 +39,7 @@
 
 pub mod sys;
 
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::path::Path;
 use std::ptr;
 use thiserror::Error;
