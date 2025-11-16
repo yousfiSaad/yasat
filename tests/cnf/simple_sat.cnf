@@ -1,0 +1,4 @@
+c Simple SAT test case
+c Single variable, single clause
+p cnf 1 1
+1 0

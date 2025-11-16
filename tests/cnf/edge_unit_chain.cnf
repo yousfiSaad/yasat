@@ -1,0 +1,8 @@
+c Edge case: Chain of unit clauses forcing all assignments
+c x1=1, x2=0, x3=1, x4=0
+c SAT with fully determined solution
+p cnf 4 4
+1 0
+-2 0
+3 0
+-4 0

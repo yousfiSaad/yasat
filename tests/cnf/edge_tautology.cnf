@@ -1,0 +1,6 @@
+c Edge case: Tautology in clause
+c (x1 OR NOT x1 OR x2) - first clause is always true (tautology)
+c Should be SAT (tautology clause is always satisfied)
+p cnf 2 2
+1 -1 2 0
+-2 0

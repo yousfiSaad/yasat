@@ -5,14 +5,11 @@
 #include <map>
 #include <set>
 #include <list>
-#include <strstream>
 #include <vector>
 #include <stack>
 #include <cstddef>
 #include <iostream>
 #include <memory>
-
-// #define NUMBER_OF_VARIABLES 9 * 9 * 9
 
 typedef char state;
 typedef std::vector<state> vector_of_states;
@@ -29,7 +26,7 @@ struct clause
   vector_of_literals literals;
   bool sat;
   clause() : sat{false} {}
-  clause(std::istream& in);
+  clause(std::istream& in, int num_variables);
 };
 typedef std::vector<clause> vector_of_clauses;
 
@@ -80,8 +77,6 @@ class CDCL_solver
   bool solved();
   literal findFirstUnsetLiteral(literal startFrom = -1);
   literal chooseUnsetLiteral();
-  // literal chooseUnsetLiteral2(char seed = 0);
-  literal chooseUnsetLiteral2();
   int undoLevelAndPop();
   literal propagate_(literal lit,
       int level,idx cause); // returns the conflict source (to be used in the analysis)
@@ -107,7 +102,6 @@ public:
   CDCL_solver(const CDCL_solver &) = default;
   CDCL_solver &operator=(CDCL_solver &&) noexcept = default;
   CDCL_solver &operator=(const CDCL_solver &) = default;
-  // bool addConstraints(const std::vector<literal>& literals);
   void shrink_to_fit();
   std::ostream &printCnf(std::ostream &out);
   size_t cnfSize();
@@ -152,12 +146,5 @@ inline literal CDCL_solver::VAL(idx a)
 inline literal CDCL_solver::NOT(literal a)
 {
   return a ^ 1;
-}
-inline void invFlatIndices(const idx& indx,
-    char& i, char&j, char&e)
-{
-  e = indx%9;
-  j = indx/9%9;
-  i = indx/81;
 }
 #endif

@@ -1,0 +1,5 @@
+c Simple UNSAT test case
+c Contradictory unit clauses
+p cnf 1 2
+1 0
+-1 0

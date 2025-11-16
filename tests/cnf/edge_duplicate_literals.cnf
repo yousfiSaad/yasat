@@ -1,0 +1,5 @@
+c Edge case: Duplicate literals in same clause
+c (x1 OR x1 OR x2) - duplicate x1
+c Should still be SAT (duplicates don't affect satisfiability)
+p cnf 2 1
+1 1 2 0

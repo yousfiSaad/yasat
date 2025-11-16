@@ -1,0 +1,8 @@
+c Unit propagation leading to UNSAT
+c a=1, then b=1 (from clause 2), then c=1 (from clause 3)
+c But clause 4 requires NOT c, contradiction
+p cnf 3 4
+1 0
+-1 2 0
+-2 3 0
+-3 0

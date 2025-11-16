@@ -1,3 +1,32 @@
-.vscode
+# Build artifacts
+build/
+*.o
+*.out
+*.a
+*.so
+*.dylib
+
+# Executables
+yasat
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+
+# Data directories (user-specific)
 data/*/
-build
