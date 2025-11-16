@@ -336,11 +336,20 @@ analysisResult CDCL_solver::analyze(literal conflictingLiteral) {
     literal nLit = NOT(lit);
     res.newClause.literals.push_back(nLit);
   }
-  std::set<int>::reverse_iterator rIt = ss.rbegin();
-  std::set<int>::reverse_iterator rIt2 = ss.rbegin();
-  rIt++;
-  res.targetLevel = *rIt;
-  res.maxLevel = *rIt2;
+
+  // Handle edge case: prevent iterator dereference beyond end
+  // When ss has fewer than 2 levels, set targetLevel = maxLevel
+  // This makes maxLevel > targetLevel false, triggering normal backTrack()
+  if (ss.size() < 2) {
+    res.maxLevel = ss.empty() ? 0 : *ss.rbegin();
+    res.targetLevel = res.maxLevel;  // Same as maxLevel - triggers backTrack()
+  } else {
+    std::set<int>::reverse_iterator rIt = ss.rbegin();
+    std::set<int>::reverse_iterator rIt2 = ss.rbegin();
+    rIt++;
+    res.targetLevel = *rIt;   // Second-highest level
+    res.maxLevel = *rIt2;     // Highest level
+  }
   return res;
 }
 size_t CDCL_solver::cnfSize() { return cnf.size(); }
