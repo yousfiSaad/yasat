@@ -329,33 +329,19 @@ yasat_error yasat_get_all_assignments(yasat_solver* solver,
 
 int yasat_get_num_variables(yasat_solver* solver) {
     if (!solver) return -1;
-    if (!solver->cpp_solver) {
-        // If solver not yet created, return the tracked count
-        return solver->num_variables;
-    }
 
-    try {
-        // cnfSize returns 2 * num_variables (for positive and negative literals)
-        return static_cast<int>(solver->cpp_solver->cnfSize() / 2);
-    } catch (...) {
-        return -1;
-    }
+    // Return the tracked variable count
+    // Note: We cannot use cnfSize() because pruneCnf() removes satisfied clauses during solving
+    return solver->num_variables;
 }
 
 int yasat_get_num_clauses(yasat_solver* solver) {
     if (!solver) return -1;
 
-    if (!solver->cpp_solver) {
-        // If solver not yet created, return the tracked count
-        // For parsed CNF, use num_clauses; for manually added, use clauses_added
-        return solver->num_clauses > 0 ? solver->num_clauses : solver->clauses_added;
-    }
-
-    try {
-        return static_cast<int>(solver->cpp_solver->getCleanedCnf().size());
-    } catch (...) {
-        return -1;
-    }
+    // Return the tracked clause count
+    // Note: We cannot use getCleanedCnf().size() because it excludes satisfied clauses
+    // For parsed CNF, use num_clauses; for manually added, use clauses_added
+    return solver->num_clauses > 0 ? solver->num_clauses : solver->clauses_added;
 }
 
 /* ========================================================================== */
