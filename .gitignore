@@ -30,3 +30,7 @@ yasat
 
 # Data directories (user-specific)
 data/*/
+
+# Rust build artifacts
+bindings/rust/target/
+bindings/rust/Cargo.lock
