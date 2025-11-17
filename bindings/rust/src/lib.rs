@@ -192,7 +192,7 @@ impl Solver {
             sys::yasat_add_clause(
                 self.inner.as_ptr(),
                 literals.as_ptr(),
-                literals.len(),
+                literals.len() as i32,
             )
         };
 
@@ -265,12 +265,22 @@ impl Solver {
 
     /// Get the number of variables in the formula
     pub fn num_variables(&self) -> usize {
-        unsafe { sys::yasat_get_num_variables(self.inner.as_ptr()) }
+        let count = unsafe { sys::yasat_get_num_variables(self.inner.as_ptr()) };
+        if count < 0 {
+            0
+        } else {
+            count as usize
+        }
     }
 
     /// Get the number of clauses in the formula
     pub fn num_clauses(&self) -> usize {
-        unsafe { sys::yasat_get_num_clauses(self.inner.as_ptr()) }
+        let count = unsafe { sys::yasat_get_num_clauses(self.inner.as_ptr()) };
+        if count < 0 {
+            0
+        } else {
+            count as usize
+        }
     }
 
     /// Get the assignment for a specific variable
@@ -334,13 +344,11 @@ impl Solver {
             sys::yasat_get_all_assignments(
                 self.inner.as_ptr(),
                 assignments.as_mut_ptr(),
-                num_vars,
+                num_vars as i32,
             )
         };
 
-        if result < 0 {
-            return Err(Error::Unknown);
-        }
+        Self::check_error(result)?;
 
         Ok(assignments.into_iter().map(|v| v != 0).collect())
     }

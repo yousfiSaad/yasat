@@ -3,7 +3,7 @@
 //! This module contains raw, unsafe bindings to the C API.
 //! Users should prefer the safe wrapper in the parent module.
 
-use libc::{c_char, c_int, size_t};
+use libc::{c_char, c_int};
 
 /// Opaque handle to a YASAT solver instance
 #[repr(C)]
@@ -57,12 +57,12 @@ extern "C" {
     ///
     /// # Arguments
     /// * `solver` - Solver instance
-    /// * `literals` - Array of literals (0-terminated)
-    /// * `length` - Number of literals (excluding terminator)
+    /// * `literals` - Array of literals
+    /// * `num_literals` - Number of literals
     pub fn yasat_add_clause(
         solver: *mut yasat_solver,
         literals: *const c_int,
-        length: size_t,
+        num_literals: c_int,
     ) -> yasat_error;
 
     /// Parse and load a CNF file
@@ -81,10 +81,10 @@ extern "C" {
     pub fn yasat_solve(solver: *mut yasat_solver) -> yasat_result;
 
     /// Get the number of variables
-    pub fn yasat_get_num_variables(solver: *const yasat_solver) -> size_t;
+    pub fn yasat_get_num_variables(solver: *const yasat_solver) -> c_int;
 
     /// Get the number of clauses
-    pub fn yasat_get_num_clauses(solver: *const yasat_solver) -> size_t;
+    pub fn yasat_get_num_clauses(solver: *const yasat_solver) -> c_int;
 
     /// Get the assignment for a specific variable
     ///
@@ -99,14 +99,14 @@ extern "C" {
     /// # Arguments
     /// * `solver` - Solver instance
     /// * `assignments` - Output array (must be pre-allocated)
-    /// * `length` - Size of output array
+    /// * `num_vars` - Number of variables
     ///
-    /// Returns number of assignments written, or -1 on error
+    /// Returns YASAT_OK on success, error code on failure
     pub fn yasat_get_all_assignments(
         solver: *const yasat_solver,
         assignments: *mut c_int,
-        length: size_t,
-    ) -> c_int;
+        num_vars: c_int,
+    ) -> yasat_error;
 
     /// Reset the solver to initial state
     pub fn yasat_reset(solver: *mut yasat_solver);
